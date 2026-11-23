@@ -4,7 +4,7 @@ Self-contained projects that feed the VyaparAI platform. Each lives in its own f
 
 | Folder | What | Stack | Status |
 |---|---|---|---|
-| [measuremate/](measuremate/) | MeasureMate: boutique/tailoring management (customers, versioned measurements, orders and production workflow) | NestJS 11, Next.js 15, Prisma 6, PostgreSQL RLS, pnpm | Imported snapshot, runs standalone. Features are mapped to VyaparAI phases in [measuremate/INTEGRATION.md](measuremate/INTEGRATION.md) |
+| [measureMate/](measureMate/) | MeasureMate: boutique/tailoring management (customers, versioned measurements, orders and production workflow) | NestJS 11, Next.js 15, Prisma 6, PostgreSQL RLS, pnpm | Imported snapshot, runs standalone. Features are mapped to VyaparAI phases in [measureMate/INTEGRATION.md](measureMate/INTEGRATION.md) |
 
 ## Adding a sub-project
 
@@ -14,12 +14,12 @@ Self-contained projects that feed the VyaparAI platform. Each lives in its own f
 
 ## Provenance and drift
 
-`measuremate/` is a snapshot of the `measureMate-orders` working copy (branch `feature/orders-production`, commit `8a4a034`, upstream https://github.com/Zia-CRM-hub/measureMate). It is **not** linked by git submodule, so changes upstream do not appear here automatically. Re-import deliberately when needed.
+`measureMate/` is a snapshot of the `measureMate-orders` working copy (branch `feature/orders-production`, commit `8a4a034`, upstream https://github.com/Zia-CRM-hub/measureMate). It is **not** linked by git submodule, so changes upstream do not appear here automatically. Re-import deliberately when needed.
 
 ## Running MeasureMate on its own
 
 ```bash
-cd sub_projects/measuremate
+cd sub_projects/measureMate
 pnpm install && pnpm --filter @measuremate/validation build
 pnpm --filter @measuremate/api db:local     # see its README for the remaining steps
 ```

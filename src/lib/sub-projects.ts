@@ -23,7 +23,7 @@ export const SUB_PROJECTS: SubProject[] = [
   {
     slug: "measuremate",
     name: "MeasureMate",
-    folder: "sub_projects/measuremate",
+    folder: "sub_projects/measureMate",
     summary: "Boutique and tailoring management: customers, versioned measurements, orders and production workflow.",
     stack: "NestJS, Next.js, Prisma, PostgreSQL RLS",
     status: "Imported snapshot, runs standalone (no shared DB or login yet)",
