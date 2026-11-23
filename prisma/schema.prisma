@@ -1,0 +1,261 @@
+// VyaparAI - Phase 1 schema (identity, tenancy, RBAC, audit, customers foundation).
+// Conventions: UUID primary keys, UTC timestamps, tenantId on every tenant-owned row,
+// Decimal (never Float) for money/quantity in later phases.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum MembershipStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum SubscriptionPlan {
+  TRIAL
+  STARTER
+  GROWTH
+  PRO
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+}
+
+enum ConsentPurpose {
+  WHATSAPP_MESSAGING
+  MARKETING
+  MEASUREMENT_DATA
+  PHOTO_STORAGE
+}
+
+// ───────────── Tenancy ─────────────
+
+model Tenant {
+  id        String       @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String       @unique
+  status    TenantStatus @default(ACTIVE)
+  gstin     String?
+  locale    String       @default("en")
+  timezone  String       @default("Asia/Kolkata")
+  createdAt DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime     @updatedAt @db.Timestamptz(3)
+
+  branches     Branch[]
+  memberships  Membership[]
+  roles        Role[]
+  customers    Customer[]
+  subscription Subscription?
+  entitlements FeatureEntitlement[]
+}
+
+model Branch {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  name      String
+  code      String
+  city      String?
+  address   String?
+  phone     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  tenant             Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  membershipBranches MembershipBranch[]
+  customers          Customer[]
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, id])
+  @@index([tenantId])
+}
+
+// ───────────── Identity & RBAC ─────────────
+
+/// Global identity. A user may belong to several tenants through Membership.
+model User {
+  id              String    @id @default(uuid()) @db.Uuid
+  email           String    @unique
+  name            String
+  passwordHash    String
+  locale          String    @default("en")
+  isPlatformAdmin Boolean   @default(false)
+  failedLogins    Int       @default(0)
+  lockedUntil     DateTime? @db.Timestamptz(3)
+  lastLoginAt     DateTime? @db.Timestamptz(3)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
+
+  memberships Membership[]
+}
+
+/// Global catalogue of permission keys (for example customer:read). Seeded from code.
+model Permission {
+  id          String @id @default(uuid()) @db.Uuid
+  key         String @unique
+  description String
+
+  roles RolePermission[]
+}
+
+model Role {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  key       String
+  name      String
+  isSystem  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  permissions RolePermission[]
+  memberships Membership[]
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+}
+
+model RolePermission {
+  roleId       String @db.Uuid
+  permissionId String @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model Membership {
+  id          String           @id @default(uuid()) @db.Uuid
+  tenantId    String           @db.Uuid
+  userId      String           @db.Uuid
+  roleId      String           @db.Uuid
+  status      MembershipStatus @default(ACTIVE)
+  /// true = access to every branch of the tenant; false = only MembershipBranch rows.
+  allBranches Boolean          @default(false)
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime         @updatedAt @db.Timestamptz(3)
+
+  tenant   Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role     Role               @relation(fields: [roleId], references: [id])
+  branches MembershipBranch[]
+
+  @@unique([tenantId, userId])
+  @@index([tenantId])
+  @@index([userId])
+}
+
+model MembershipBranch {
+  membershipId String @db.Uuid
+  branchId     String @db.Uuid
+  tenantId     String @db.Uuid
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  // Composite FK guarantees the branch belongs to the same tenant as the membership.
+  branch     Branch     @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Cascade)
+
+  @@id([membershipId, branchId])
+  @@index([tenantId])
+}
+
+// ───────────── Customers (foundation; full CRM in Phase 2) ─────────────
+
+model Customer {
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @db.Uuid
+  branchId          String?   @db.Uuid
+  name              String
+  phone             String
+  email             String?
+  preferredLanguage String    @default("en")
+  notes             String?
+  /// Soft-delete / DPDP erasure marker. The erasure workflow lands in Phase 2.
+  deletedAt         DateTime? @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @db.Timestamptz(3)
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch   Branch?   @relation(fields: [tenantId, branchId], references: [tenantId, id])
+  consents Consent[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, phone])
+  @@index([tenantId, name])
+  @@index([tenantId, branchId])
+}
+
+/// Append-only consent ledger (latest row per customer+purpose is the current state).
+model Consent {
+  id           String         @id @default(uuid()) @db.Uuid
+  tenantId     String         @db.Uuid
+  customerId   String         @db.Uuid
+  purpose      ConsentPurpose
+  granted      Boolean
+  source       String
+  recordedById String?        @db.Uuid
+  createdAt    DateTime       @default(now()) @db.Timestamptz(3)
+
+  customer Customer @relation(fields: [tenantId, customerId], references: [tenantId, id], onDelete: Cascade)
+
+  @@index([tenantId, customerId, purpose, createdAt])
+}
+
+// ───────────── Audit ─────────────
+
+/// Append-only. Never updated or deleted by application code.
+model AuditEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String?  @db.Uuid
+  actorUserId String?  @db.Uuid
+  action      String
+  entityType  String
+  entityId    String?
+  metadata    Json?
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, entityType, entityId])
+  @@index([actorUserId])
+}
+
+// ───────────── SaaS ─────────────
+
+model Subscription {
+  id          String             @id @default(uuid()) @db.Uuid
+  tenantId    String             @unique @db.Uuid
+  plan        SubscriptionPlan   @default(TRIAL)
+  status      SubscriptionStatus @default(TRIALING)
+  trialEndsAt DateTime?          @db.Timestamptz(3)
+  createdAt   DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime           @updatedAt @db.Timestamptz(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model FeatureEntitlement {
+  id       String  @id @default(uuid()) @db.Uuid
+  tenantId String  @db.Uuid
+  feature  String
+  enabled  Boolean @default(true)
+  limit    Int?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, feature])
+}
