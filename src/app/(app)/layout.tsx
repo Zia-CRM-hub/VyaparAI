@@ -10,6 +10,7 @@ const NAV: Array<{ href: string; label: string; perm: Permission }> = [
   { href: "/branches", label: "Branches", perm: "branch:read" },
   { href: "/team", label: "Team", perm: "user:read" },
   { href: "/audit", label: "Audit", perm: "audit:read" },
+  { href: "/sub-projects", label: "Sub-projects", perm: "tenant:manage" },
 ];
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
