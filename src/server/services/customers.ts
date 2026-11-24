@@ -43,9 +43,16 @@ export async function getCustomer(ctx: AuthContext, id: string) {
 export async function createCustomer(ctx: AuthContext, input: CustomerCreateInput) {
   assertCan(ctx, "customer:write");
   await assertBranchUsable(ctx, input.branchId);
+  const { gender, ageGroup, ...fields } = input;
   try {
     const c = await tenantDb(ctx.tenantId).customer.create({
-      data: { ...input, branchId: input.branchId ?? null } as Prisma.CustomerUncheckedCreateInput,
+      data: {
+        ...fields,
+        branchId: input.branchId ?? null,
+        ...(gender && ageGroup
+          ? { familyMembers: { create: { name: input.name, relation: "Self", isSelf: true, gender, ageGroup } } }
+          : {}),
+      } as Prisma.CustomerUncheckedCreateInput,
     });
     await recordAudit({
       tenantId: ctx.tenantId, actorUserId: ctx.userId, action: "customer.create",

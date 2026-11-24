@@ -35,6 +35,39 @@ enum SubscriptionStatus {
   CANCELLED
 }
 
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum AgeGroup {
+  BABY
+  KID
+  TEEN
+  ADULT
+  SENIOR
+}
+
+enum OrderStatus {
+  ORDER_RECEIVED
+  MEASUREMENT
+  CUTTING
+  STITCHING
+  TRIAL
+  ALTERATION
+  READY
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  CARD
+  BANK
+}
+
 enum ConsentPurpose {
   WHATSAPP_MESSAGING
   MARKETING
@@ -45,22 +78,37 @@ enum ConsentPurpose {
 // ───────────── Tenancy ─────────────
 
 model Tenant {
-  id        String       @id @default(uuid()) @db.Uuid
-  name      String
-  slug      String       @unique
-  status    TenantStatus @default(ACTIVE)
-  gstin     String?
-  locale    String       @default("en")
-  timezone  String       @default("Asia/Kolkata")
-  createdAt DateTime     @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime     @updatedAt @db.Timestamptz(3)
+  id            String       @id @default(uuid()) @db.Uuid
+  name          String
+  slug          String       @unique
+  status        TenantStatus @default(ACTIVE)
+  gstin         String?
+  phone         String?
+  address       String?
+  city          String?
+  /// Branding / theme (per tenant)
+  brandColor    String       @default("#7c2d5b")
+  logoDataUrl   String?      @db.Text
+  bannerText    String?
+  bannerEnabled Boolean      @default(false)
+  bannerTone    String       @default("info")
+  /// Sequential human-friendly order numbers per tenant
+  nextOrderNo   Int          @default(1)
+  locale        String       @default("en")
+  timezone      String       @default("Asia/Kolkata")
+  createdAt     DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime     @updatedAt @db.Timestamptz(3)
 
-  branches     Branch[]
-  memberships  Membership[]
-  roles        Role[]
-  customers    Customer[]
-  subscription Subscription?
-  entitlements FeatureEntitlement[]
+  branches        Branch[]
+  memberships     Membership[]
+  roles           Role[]
+  customers       Customer[]
+  familyMembers   FamilyMember[]
+  measurementSets MeasurementSet[]
+  orders          Order[]
+  payments        Payment[]
+  subscription    Subscription?
+  entitlements    FeatureEntitlement[]
 }
 
 model Branch {
@@ -78,6 +126,7 @@ model Branch {
   tenant             Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   membershipBranches MembershipBranch[]
   customers          Customer[]
+  orders             Order[]
 
   @@unique([tenantId, code])
   @@unique([tenantId, id])
@@ -154,7 +203,10 @@ model Membership {
   role     Role               @relation(fields: [roleId], references: [id])
   branches MembershipBranch[]
 
+  assignedOrders Order[]
+
   @@unique([tenantId, userId])
+  @@unique([tenantId, id])
   @@index([tenantId])
   @@index([userId])
 }
@@ -188,9 +240,11 @@ model Customer {
   createdAt         DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt         DateTime  @updatedAt @db.Timestamptz(3)
 
-  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  branch   Branch?   @relation(fields: [tenantId, branchId], references: [tenantId, id])
-  consents Consent[]
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch        Branch?        @relation(fields: [tenantId, branchId], references: [tenantId, id])
+  consents      Consent[]
+  familyMembers FamilyMember[]
+  orders        Order[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, phone])
@@ -258,4 +312,125 @@ model FeatureEntitlement {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, feature])
+}
+
+// ───────────── Family, measurements, orders, payments ─────────────
+
+/// A person the customer orders for (self, spouse, child...). Each has own measurements.
+model FamilyMember {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @db.Uuid
+  customerId  String    @db.Uuid
+  name        String
+  relation    String    @default("Self")
+  gender      Gender
+  ageGroup    AgeGroup
+  dateOfBirth DateTime? @db.Date
+  notes       String?
+  isSelf      Boolean   @default(false)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+
+  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer     Customer         @relation(fields: [tenantId, customerId], references: [tenantId, id], onDelete: Cascade)
+  measurements MeasurementSet[]
+  orders       Order[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, customerId])
+}
+
+/// Immutable measurement version for one person + garment. A new save creates a new version.
+model MeasurementSet {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @db.Uuid
+  familyMemberId String   @db.Uuid
+  garment        String
+  version        Int
+  /// { fieldKey: centimetres }
+  values         Json
+  notes          String?
+  createdById    String?  @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  tenant Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member FamilyMember @relation(fields: [tenantId, familyMemberId], references: [tenantId, id], onDelete: Cascade)
+  orders Order[]
+
+  @@unique([tenantId, familyMemberId, garment, version])
+  @@unique([tenantId, id])
+}
+
+model Order {
+  id                   String      @id @default(uuid()) @db.Uuid
+  tenantId             String      @db.Uuid
+  orderNo              Int
+  branchId             String?     @db.Uuid
+  customerId           String      @db.Uuid
+  familyMemberId       String      @db.Uuid
+  garment              String
+  description          String?
+  status               OrderStatus @default(ORDER_RECEIVED)
+  /// The exact measurement version this order is made from.
+  measurementSetId     String?     @db.Uuid
+  promisedDate         DateTime    @db.Date
+  assignedMembershipId String?     @db.Uuid
+  charges              Decimal     @db.Decimal(12, 2)
+  deliveredAt          DateTime?   @db.Timestamptz(3)
+  deliveryNote         String?
+  createdById          String?     @db.Uuid
+  createdAt            DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime    @updatedAt @db.Timestamptz(3)
+
+  tenant      Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch      Branch?              @relation(fields: [tenantId, branchId], references: [tenantId, id])
+  customer    Customer             @relation(fields: [tenantId, customerId], references: [tenantId, id])
+  member      FamilyMember         @relation(fields: [tenantId, familyMemberId], references: [tenantId, id])
+  measurement MeasurementSet?      @relation(fields: [tenantId, measurementSetId], references: [tenantId, id])
+  assignedTo  Membership?          @relation(fields: [tenantId, assignedMembershipId], references: [tenantId, id])
+  payments    Payment[]
+  history     OrderStatusHistory[]
+
+  @@unique([tenantId, orderNo])
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, promisedDate])
+  @@index([tenantId, customerId])
+  @@index([tenantId, assignedMembershipId])
+}
+
+model Payment {
+  id             String        @id @default(uuid()) @db.Uuid
+  tenantId       String        @db.Uuid
+  orderId        String        @db.Uuid
+  amount         Decimal       @db.Decimal(12, 2)
+  method         PaymentMethod
+  reference      String?
+  note           String?
+  receivedById   String?       @db.Uuid
+  idempotencyKey String?
+  createdAt      DateTime      @default(now()) @db.Timestamptz(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  order  Order  @relation(fields: [tenantId, orderId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, orderId])
+  @@index([tenantId, createdAt])
+}
+
+/// Append-only order timeline.
+model OrderStatusHistory {
+  id          String       @id @default(uuid()) @db.Uuid
+  tenantId    String       @db.Uuid
+  orderId     String       @db.Uuid
+  fromStatus  OrderStatus?
+  toStatus    OrderStatus
+  note        String?
+  actorUserId String?      @db.Uuid
+  createdAt   DateTime     @default(now()) @db.Timestamptz(3)
+
+  order Order @relation(fields: [tenantId, orderId], references: [tenantId, id], onDelete: Cascade)
+
+  @@index([tenantId, orderId, createdAt])
 }

@@ -5,6 +5,7 @@ Self-contained projects that feed the VyaparAI platform. Each lives in its own f
 | Folder | What | Stack | Status |
 |---|---|---|---|
 | [measureMate/](measureMate/) | MeasureMate: boutique/tailoring management (customers, versioned measurements, orders and production workflow) | NestJS 11, Next.js 15, Prisma 6, PostgreSQL RLS, pnpm | Imported snapshot, runs standalone. Features are mapped to VyaparAI phases in [measureMate/INTEGRATION.md](measureMate/INTEGRATION.md) |
+| [vyaparSaathi/](vyaparSaathi/) | VyaparSaathi: WhatsApp-channel style compliance companion for small traders, vendors, service providers and tailors who have no legal or finance consultant | TypeScript (pure rule engine), tsx tests | Foundation: 15 draft rules, engine, channel posts, design docs. Rules need CA review before real use |
 
 ## Adding a sub-project
 

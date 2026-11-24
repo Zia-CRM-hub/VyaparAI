@@ -59,11 +59,11 @@ export async function authenticate(
     where: { userId: user.id, status: "ACTIVE", tenant: { status: "ACTIVE" } },
     orderBy: { createdAt: "asc" },
   });
-  if (!membership) return null;
+  if (!membership && !user.isPlatformAdmin) return null; // platform admins need no tenant
 
   await prisma.user.update({ where: { id: user.id }, data: { failedLogins: 0, lockedUntil: null, lastLoginAt: new Date() } });
   await recordAudit({
-    tenantId: membership.tenantId, actorUserId: user.id, action: "auth.login", entityType: "User", entityId: user.id, ...meta,
+    tenantId: membership?.tenantId ?? null, actorUserId: user.id, action: "auth.login", entityType: "User", entityId: user.id, ...meta,
   });
-  return { id: user.id, email: user.email, name: user.name, membershipId: membership.id };
+  return { id: user.id, email: user.email, name: user.name, membershipId: membership?.id ?? "" };
 }

@@ -88,3 +88,20 @@ export async function provisionTenant(input: SignupInput, meta: Meta = {}) {
 
   return result;
 }
+
+/**
+ * Brings every tenant's system roles in line with the code permission catalogue.
+ * Run after deploys that add permissions (npm run db:sync-roles; also part of db:seed).
+ */
+export async function syncAllTenantRoles(db: typeof prisma = prisma) {
+  await syncPermissions(db);
+  const perms = await db.permission.findMany();
+  const permId = new Map(perms.map((p) => [p.key, p.id]));
+  const roles = await db.role.findMany({ where: { isSystem: true } });
+  for (const role of roles) {
+    const wanted = ROLE_PERMISSIONS[role.key as keyof typeof ROLE_PERMISSIONS];
+    if (!wanted) continue;
+    await db.rolePermission.deleteMany({ where: { roleId: role.id } });
+    await db.rolePermission.createMany({ data: wanted.map((p) => ({ roleId: role.id, permissionId: permId.get(p)! })) });
+  }
+}

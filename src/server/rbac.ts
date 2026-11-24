@@ -13,7 +13,13 @@ export const PERMISSIONS = {
   "customer:delete": "Delete customers",
   "consent:write": "Record customer consent",
   "audit:read": "View the audit trail",
-  "tenant:manage": "Edit business settings and subscription",
+  "tenant:manage": "Edit business settings, branding and subscription",
+  "measurement:read": "View measurements",
+  "measurement:write": "Take and save measurements",
+  "order:read": "View orders",
+  "order:write": "Create and edit orders",
+  "order:advance": "Move orders through production and delivery",
+  "payment:write": "Record payments",
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;
@@ -45,12 +51,19 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
   MANAGER: [
     "dashboard:read", "branch:read", "branch:manage", "user:read", "user:manage",
     "customer:read", "customer:write", "consent:write", "audit:read",
+    "measurement:read", "measurement:write", "order:read", "order:write", "order:advance", "payment:write",
   ],
-  SALES: ["dashboard:read", "branch:read", "customer:read", "customer:write", "consent:write"],
-  MEASUREMENT_SPECIALIST: ["dashboard:read", "branch:read", "customer:read", "customer:write", "consent:write"],
-  PRODUCTION_MANAGER: ["dashboard:read", "branch:read", "user:read", "customer:read"],
-  TAILOR: ["branch:read"],
-  CASHIER: ["dashboard:read", "branch:read", "customer:read"],
+  SALES: [
+    "dashboard:read", "branch:read", "customer:read", "customer:write", "consent:write",
+    "measurement:read", "measurement:write", "order:read", "order:write", "payment:write",
+  ],
+  MEASUREMENT_SPECIALIST: [
+    "dashboard:read", "branch:read", "customer:read", "customer:write", "consent:write",
+    "measurement:read", "measurement:write", "order:read",
+  ],
+  PRODUCTION_MANAGER: ["dashboard:read", "branch:read", "user:read", "customer:read", "measurement:read", "order:read", "order:advance"],
+  TAILOR: ["branch:read", "measurement:read", "order:read", "order:advance"],
+  CASHIER: ["dashboard:read", "branch:read", "customer:read", "order:read", "payment:write"],
 };
 
 /** Roles a user with `user:manage` may assign. Only an OWNER can mint another OWNER. */

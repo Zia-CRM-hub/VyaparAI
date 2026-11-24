@@ -11,6 +11,11 @@ export const TENANT_MODELS = new Set([
   "AuditEvent",
   "Subscription",
   "FeatureEntitlement",
+  "FamilyMember",
+  "MeasurementSet",
+  "Order",
+  "Payment",
+  "OrderStatusHistory",
 ]);
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

@@ -1,0 +1,18 @@
+{
+  "name": "@vyaparai/saathi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VyaparSaathi: WhatsApp-channel style compliance companion for small Indian traders, vendors, service providers and tailors",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "demo": "tsx src/demo.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
