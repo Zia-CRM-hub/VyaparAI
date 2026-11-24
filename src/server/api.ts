@@ -42,12 +42,12 @@ export async function readJson<S extends ZodTypeAny>(req: NextRequest, schema: S
   return schema.parse(body);
 }
 
-type Handler<P> = (args: { req: NextRequest; ctx: AuthContext; params: P }) => Promise<NextResponse | Response>;
+type Handler<P, C> = (args: { req: NextRequest; ctx: C; params: P }) => Promise<NextResponse | Response>;
 
 /** Standard wrapper: CSRF check → session context → per-user rate limit → handler → uniform errors. */
-export function secured<P = Record<string, never>>(
-  getCtx: () => Promise<AuthContext>,
-  handler: Handler<P>,
+export function secured<P = Record<string, never>, C extends { userId: string } = AuthContext>(
+  getCtx: () => Promise<C>,
+  handler: Handler<P, C>,
 ) {
   return async (req: NextRequest, route: { params: Promise<P> }) => {
     try {

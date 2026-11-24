@@ -1,6 +1,6 @@
 {
   "name": "vyaparai",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "description": "VyaparAI - AI Operating System for Boutiques & Tailoring Businesses",
   "engines": {
@@ -20,6 +20,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx --env-file-if-exists=.env prisma/seed.ts",
+    "db:sync-roles": "tsx --env-file-if-exists=.env scripts/sync-roles.ts",
     "db:reset": "prisma migrate reset --force",
     "postinstall": "prisma generate"
   },

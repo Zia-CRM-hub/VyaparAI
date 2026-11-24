@@ -2,7 +2,9 @@
 
 AI Operating System for boutiques and tailoring businesses (India / Bengaluru first). Multi-tenant SaaS, modular monolith.
 
-**Status: Phase 0 + 1 complete** (foundation). Customers, measurements, orders, payments, production, WhatsApp and the Copilot are later phases; see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for what is built, mocked and planned.
+**Status:** Phases 0-1 done, plus the first slice of Phases 2-4 (customers, family members, versioned measurements, orders, production, payments, delivery) and Super Admin. Inventory/suppliers, quotations and GST invoices, WhatsApp, the Copilot, SaaS billing and the final hardening pass are **not built yet**; see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+**Version 0.3.0.** Docs: [docs/README.md](docs/README.md) (architecture, technical spec, manuals for Super Admin / Admin / users). Every revision is logged in [CHANGELOG.md](CHANGELOG.md); the process is in [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md).
 
 ## Run locally (Windows/macOS/Linux, no Docker needed)
 
@@ -23,14 +25,16 @@ npm run dev                   # http://localhost:3000
 
 Or with Docker: `docker compose up -d db redis`, then the same `migrate deploy` / `db:seed` / `dev` steps.
 
-Demo logins (password from `SEED_OWNER_PASSWORD`, default `ChangeMe!12345`):
+Demo logins (password `ChangeMe!12345`, override with `SEED_OWNER_PASSWORD`):
 
 | User | Role |
 |---|---|
-| owner@rangoli.demo.test | Owner of Rangoli Boutique |
-| manager.rangoli@demo.test | Manager |
-| sales.rangoli@demo.test | Sales, studio branch only |
-| owner@stitchstyle.demo.test | Owner of a second tenant (isolation demo) |
+| owner@rangoli.demo.test | Owner, Rangoli Boutique (purple theme, promo banner) |
+| owner@stitchstyle.demo.test | Owner, Stitch & Style Tailors (teal theme): separate tenant |
+| manager.rangoli@demo.test, sales.rangoli@demo.test (studio only), tailor1.rangoli@demo.test, cashier.rangoli@demo.test | Staff roles (same pattern for `stitchstyle`) |
+| admin@vyaparai.demo.test / `PlatformAdmin!2345` | Super Admin (`/admin`), no tenant |
+
+After upgrading an existing database run `npx prisma migrate deploy` then `npm run db:seed` (it also syncs role permissions; `npm run db:sync-roles` does only that).
 
 ## Quality gates
 
