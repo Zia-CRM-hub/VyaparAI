@@ -38,4 +38,19 @@ export const SUB_PROJECTS: SubProject[] = [
       { name: "Postgres Row-Level Security", vyaparDomain: "Tenancy", phase: 9, status: "reference", note: "Defense in depth" },
     ],
   },
+  {
+    slug: "vyaparsaathi",
+    name: "VyaparSaathi",
+    folder: "sub_projects/vyaparSaathi",
+    summary: "WhatsApp-channel style compliance companion for small traders, vendors, service providers and tailors without a legal or finance consultant.",
+    stack: "TypeScript rule engine, WhatsApp Business Platform (planned)",
+    status: "Foundation: draft rule catalogue, engine and channel posts. Rules need CA review before real use",
+    features: [
+      { name: "Compliance rule catalogue (GST, income tax, Udyam, shops act, FSSAI, DPDP)", vyaparDomain: "Notifications", phase: 3, status: "planned", note: "Draft rules; CA review gate first" },
+      { name: "Reminders with Done / Snooze tracking", vyaparDomain: "Notifications", phase: 3, status: "planned", note: "New ComplianceTask table, tenant-scoped" },
+      { name: "Turnover gauge against the GST limit", vyaparDomain: "Payments", phase: 3, status: "planned", note: "Computed from VyaparAI payments, never typed" },
+      { name: "DPDP consent and measurement deletion", vyaparDomain: "Customers", phase: 2, status: "planned", note: "Consent on customer record" },
+      { name: "WhatsApp delivery with interactive buttons", vyaparDomain: "Notifications", phase: 4, status: "planned", note: "Business Platform, approved templates" },
+    ],
+  },
 ];
