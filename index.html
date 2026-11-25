@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b1d3a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Balloon Shooter</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1d3a; font-family: system-ui, sans-serif; touch-action: none; overscroll-behavior: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  canvas { display: block; width: 100vw; height: 100vh; cursor: crosshair; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+(() => {
+  const cv = document.getElementById("c"), ctx = cv.getContext("2d");
+  let W, H, GROUND;
+  const resize = () => {
+    const dpr = window.devicePixelRatio || 1;
+    W = innerWidth; H = innerHeight; GROUND = H - Math.max(50, H * 0.1);
+    cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+  addEventListener("resize", resize); resize();
+
+  const GAME_SECONDS = 60, GRAVITY = 900, MAX_SPEED = 1150, CHARGE_TIME = 0.9;
+  const COLORS = ["#ff4d6d", "#ffd23f", "#3ddc97", "#4cc9f0", "#b388ff", "#ff9f1c"];
+  const rand = (a, b) => a + Math.random() * (b - a);
+
+  let state = "menu"; // menu | play | over
+  let balloons, arrows, particles, floaters, score, shots, hits, timeLeft, spawnTimer, charging, charge, aim, best;
+  try { best = +localStorage.getItem("balloon-best") || 0; } catch { best = 0; }
+
+  const bow = () => ({ x: Math.min(110, W * 0.12), y: GROUND - 90 });
+
+  function reset() {
+    balloons = []; arrows = []; particles = []; floaters = [];
+    score = 0; shots = 0; hits = 0; timeLeft = GAME_SECONDS; spawnTimer = 0;
+    charging = false; charge = 0; aim = -0.35;
+    state = "play";
+  }
+
+  function spawnBalloon() {
+    const r = rand(24, 38), speedBoost = 1 + (GAME_SECONDS - timeLeft) / GAME_SECONDS;
+    balloons.push({
+      x: rand(W * 0.35, W - 50), y: GROUND + r + 20, r,
+      vy: -rand(50, 95) * speedBoost, phase: rand(0, 6.28), sway: rand(10, 30),
+      color: COLORS[(Math.random() * COLORS.length) | 0],
+      points: Math.round(60 - r), // small balloons are worth more
+    });
+  }
+
+  function pop(b) {
+    for (let i = 0; i < 18; i++) {
+      const a = rand(0, 6.28), s = rand(80, 260);
+      particles.push({ x: b.x, y: b.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.7, color: b.color });
+    }
+  }
+
+  function aimFrom(px, py) {
+    const o = bow();
+    aim = Math.max(-1.45, Math.min(0.25, Math.atan2(py - o.y, px - o.x)));
+  }
+
+  function fire() {
+    if (!charging) return;
+    charging = false;
+    const o = bow(), speed = MAX_SPEED * (0.3 + 0.7 * Math.min(1, charge));
+    arrows.push({ x: o.x + Math.cos(aim) * 40, y: o.y + Math.sin(aim) * 40, vx: Math.cos(aim) * speed, vy: Math.sin(aim) * speed, combo: 0, stuck: 0, hit: false });
+    shots++; charge = 0;
+  }
+
+  // ---- input (mouse + touch via pointer events) ----
+  cv.addEventListener("pointermove", (e) => { if (state === "play") aimFrom(e.clientX, e.clientY); });
+  cv.addEventListener("pointerdown", (e) => {
+    if (state !== "play") { reset(); return; }
+    aimFrom(e.clientX, e.clientY); charging = true; charge = 0;
+    cv.setPointerCapture(e.pointerId);
+  });
+  cv.addEventListener("pointerup", fire);
+  cv.addEventListener("pointercancel", () => { charging = false; charge = 0; });
+  addEventListener("keydown", (e) => {
+    if (e.code === "Space") { e.preventDefault(); if (state !== "play") reset(); else if (!charging) { charging = true; charge = 0; } }
+    if (state === "play") {
+      if (e.code === "ArrowUp") aim = Math.max(-1.45, aim - 0.04);
+      if (e.code === "ArrowDown") aim = Math.min(0.25, aim + 0.04);
+    }
+  });
+  addEventListener("keyup", (e) => { if (e.code === "Space") fire(); });
+
+  // ---- update ----
+  function update(dt) {
+    if (state !== "play") return;
+    timeLeft -= dt;
+    if (timeLeft <= 0) {
+      timeLeft = 0; state = "over";
+      if (score > best) { best = score; try { localStorage.setItem("balloon-best", best); } catch {} }
+    }
+    if (charging) charge = Math.min(1, charge + dt / CHARGE_TIME);
+
+    spawnTimer -= dt;
+    if (spawnTimer <= 0) { spawnBalloon(); spawnTimer = rand(0.45, 0.9) * (1 - 0.4 * (1 - timeLeft / GAME_SECONDS)); }
+
+    for (const b of balloons) { b.y += b.vy * dt; b.phase += dt * 2; b.x += Math.sin(b.phase) * b.sway * dt; }
+    balloons = balloons.filter((b) => b.y > -b.r * 2);
+
+    for (const a of arrows) {
+      if (a.stuck) { a.stuck -= dt; continue; }
+      const steps = 4, sdt = dt / steps;
+      for (let i = 0; i < steps && !a.stuck; i++) {
+        a.vy += GRAVITY * sdt; a.x += a.vx * sdt; a.y += a.vy * sdt;
+        const tx = a.x, ty = a.y;
+        for (const b of balloons) {
+          if (b.dead) continue;
+          const dx = (tx - b.x) / (b.r * 0.85), dy = (ty - b.y) / (b.r * 1.1);
+          if (dx * dx + dy * dy <= 1) {
+            b.dead = true; a.combo++; if (a.combo === 1) hits++;
+            const pts = b.points * a.combo; score += pts; pop(b);
+            floaters.push({ x: b.x, y: b.y, text: "+" + pts + (a.combo > 1 ? "  x" + a.combo + " combo!" : ""), life: 1 });
+          }
+        }
+        if (ty >= GROUND) { a.y = GROUND; a.stuck = 1.2; }
+      }
+    }
+    balloons = balloons.filter((b) => !b.dead);
+    // stuck is 0 in flight, counts down after landing, and goes negative when it should disappear
+    arrows = arrows.filter((a) => a.stuck >= 0 && a.x < W + 80 && a.x > -80);
+
+    for (const p of particles) { p.vy += 500 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; }
+    particles = particles.filter((p) => p.life > 0);
+    for (const f of floaters) { f.y -= 40 * dt; f.life -= dt; }
+    floaters = floaters.filter((f) => f.life > 0);
+  }
+
+  // ---- draw ----
+  function drawBackground() {
+    const g = ctx.createLinearGradient(0, 0, 0, GROUND);
+    g.addColorStop(0, "#0b1d3a"); g.addColorStop(1, "#5aa9e6");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#2f7d32"; ctx.fillRect(0, GROUND, W, H - GROUND);
+    ctx.fillStyle = "#256428"; ctx.fillRect(0, GROUND, W, 6);
+  }
+
+  function drawBalloon(b) {
+    ctx.strokeStyle = "rgba(255,255,255,.6)"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(b.x, b.y + b.r * 1.1);
+    ctx.quadraticCurveTo(b.x + Math.sin(b.phase) * 8, b.y + b.r * 1.1 + 22, b.x, b.y + b.r * 1.1 + 40); ctx.stroke();
+    ctx.fillStyle = b.color;
+    ctx.beginPath(); ctx.ellipse(b.x, b.y, b.r * 0.85, b.r * 1.1, 0, 0, 6.2832); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(b.x, b.y + b.r * 1.1); ctx.lineTo(b.x - 6, b.y + b.r * 1.1 + 9); ctx.lineTo(b.x + 6, b.y + b.r * 1.1 + 9); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.45)";
+    ctx.beginPath(); ctx.ellipse(b.x - b.r * 0.3, b.y - b.r * 0.4, b.r * 0.15, b.r * 0.3, 0.5, 0, 6.2832); ctx.fill();
+  }
+
+  function drawArrow(x, y, ang, len = 48) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+    ctx.strokeStyle = "#e8d9b5"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-len, 0); ctx.lineTo(0, 0); ctx.stroke();
+    ctx.fillStyle = "#cfd8dc"; ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-4, -5); ctx.lineTo(-4, 5); ctx.fill();
+    ctx.fillStyle = "#ff4d6d";
+    ctx.beginPath(); ctx.moveTo(-len, 0); ctx.lineTo(-len - 8, -6); ctx.lineTo(-len + 6, 0); ctx.lineTo(-len - 8, 6); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawBow() {
+    const o = bow(), pull = charging ? charge * 22 : 0;
+    ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(aim);
+    ctx.strokeStyle = "#8d5524"; ctx.lineWidth = 6; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(0, -48); ctx.quadraticCurveTo(26, 0, 0, 48); ctx.stroke();
+    ctx.strokeStyle = "#f5f5f5"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(0, -48); ctx.lineTo(-pull, 0); ctx.lineTo(0, 48); ctx.stroke();
+    if (charging || state === "play") { ctx.restore(); ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(aim); drawArrow(30 - pull, 0, 0, 52); }
+    ctx.restore();
+    // aim guide (dotted trajectory preview while charging)
+    if (charging) {
+      const sp = MAX_SPEED * (0.3 + 0.7 * charge);
+      let x = o.x + Math.cos(aim) * 40, y = o.y + Math.sin(aim) * 40, vx = Math.cos(aim) * sp, vy = Math.sin(aim) * sp;
+      ctx.fillStyle = "rgba(255,255,255,.55)";
+      for (let i = 0; i < 18; i++) {
+        for (let k = 0; k < 3; k++) { vy += GRAVITY * 0.012; x += vx * 0.012; y += vy * 0.012; }
+        ctx.beginPath(); ctx.arc(x, y, 2.2, 0, 6.2832); ctx.fill();
+      }
+    }
+  }
+
+  function text(t, x, y, size, color = "#fff", align = "left", weight = "700") {
+    ctx.font = `${weight} ${size}px system-ui, sans-serif`; ctx.fillStyle = color; ctx.textAlign = align; ctx.fillText(t, x, y);
+  }
+
+  function draw() {
+    drawBackground();
+    if (state === "menu") { balloons = balloons || []; }
+    (balloons || []).forEach(drawBalloon);
+    (arrows || []).forEach((a) => drawArrow(a.x, a.y, a.stuck ? Math.atan2(a.vy, a.vx) : Math.atan2(a.vy, a.vx)));
+    (particles || []).forEach((p) => { ctx.globalAlpha = Math.max(0, p.life / 0.7); ctx.fillStyle = p.color; ctx.fillRect(p.x - 3, p.y - 3, 6, 6); });
+    ctx.globalAlpha = 1;
+    drawBow();
+    (floaters || []).forEach((f) => { ctx.globalAlpha = Math.max(0, f.life); text(f.text, f.x, f.y, 20, "#fff", "center"); });
+    ctx.globalAlpha = 1;
+
+    if (state === "play" || state === "over") {
+      text("Score " + score, 20, 36, 26);
+      text("Best " + best, 20, 62, 16, "#cfe8ff", "left", "600");
+      text(Math.ceil(timeLeft) + "s", W - 20, 36, 26, timeLeft <= 10 ? "#ff6b6b" : "#fff", "right");
+      if (charging) { // power bar
+        const o = bow(); ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.fillRect(o.x - 40, o.y + 62, 80, 8);
+        ctx.fillStyle = `hsl(${120 - charge * 120},85%,55%)`; ctx.fillRect(o.x - 40, o.y + 62, 80 * charge, 8);
+      }
+    }
+    if (state === "menu" || state === "over") {
+      ctx.fillStyle = "rgba(5,12,28,.72)"; ctx.fillRect(0, 0, W, H);
+      const cx = W / 2, cy = H / 2;
+      if (state === "menu") {
+        text("Balloon Shooter", cx, cy - 70, Math.min(54, W / 9), "#fff", "center", "800");
+        text("Move to aim. Press and hold to draw the bow, release to shoot.", cx, cy - 20, Math.min(18, W / 22), "#cfe8ff", "center", "500");
+        text("Keyboard: Up/Down to aim, hold Space to draw, release to shoot.", cx, cy + 8, Math.min(16, W / 24), "#9fc3e6", "center", "500");
+        text("Small balloons score more. One arrow popping many balloons = combo.", cx, cy + 36, Math.min(16, W / 24), "#9fc3e6", "center", "500");
+      } else {
+        text("Time's up!", cx, cy - 70, Math.min(54, W / 9), "#fff", "center", "800");
+        text(`Score ${score}${score >= best && score > 0 ? "  (new best!)" : ""}`, cx, cy - 20, 28, "#ffd23f", "center");
+        text(`Accuracy ${shots ? Math.round((hits / shots) * 100) : 0}%  (${hits} of ${shots} arrows)`, cx, cy + 14, 18, "#cfe8ff", "center", "500");
+      }
+      text(state === "menu" ? "Tap or press Space to start" : "Tap or press Space to play again", cx, cy + 80, 22, "#fff", "center");
+    }
+  }
+
+  balloons = []; arrows = []; particles = []; floaters = []; score = 0; shots = 0; hits = 0; timeLeft = GAME_SECONDS; spawnTimer = 0; charging = false; charge = 0; aim = -0.35;
+  let last = performance.now();
+  (function loop(now) {
+    const dt = Math.min(0.033, (now - last) / 1000); last = now;
+    update(dt); draw(); requestAnimationFrame(loop);
+  })(last);
+})();
+if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+</script>
+</body>
+</html>
