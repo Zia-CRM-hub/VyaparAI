@@ -13,32 +13,63 @@
 <title>Balloon Shooter</title>
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1d3a; font-family: system-ui, sans-serif; touch-action: none; overscroll-behavior: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-  .banner { position: fixed; top: max(8px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 2; pointer-events: none;
-    display: flex; align-items: center; gap: clamp(6px, 1.2vw, 14px); padding: clamp(5px, 1.2vh, 10px) clamp(14px, 3vw, 34px);
-    border-radius: 999px; white-space: nowrap; color: #fff;
-    background: linear-gradient(100deg, #ff4d6d, #ff9f1c 35%, #ffd23f 50%, #3ddc97 70%, #4cc9f0);
-    box-shadow: 0 0 0 3px rgba(255,255,255,.85), 0 8px 24px rgba(0,0,0,.35), 0 0 28px rgba(255,210,63,.55);
+  .banner { position: fixed; top: max(16px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 2; pointer-events: none;
+    display: flex; align-items: center; gap: clamp(6px, 1.2vw, 12px); padding: clamp(5px, 1.1vh, 9px) clamp(18px, 3vw, 36px);
+    border-radius: 999px; white-space: nowrap; border: 4px solid #fff;
+    background: linear-gradient(100deg, #ffd1e8, #ffb3d9 45%, #e3c8ff);
+    box-shadow: 0 6px 0 #f48fb8, 0 12px 22px rgba(0,0,0,.3), 0 0 26px rgba(255,170,215,.7);
     animation: bob 3s ease-in-out infinite; }
-  .banner b { font: 800 clamp(15px, 3.2vw, 30px)/1.1 "Segoe Script", "Brush Script MT", "Trebuchet MS", system-ui, sans-serif; letter-spacing: .06em;
-    text-shadow: 0 2px 0 rgba(0,0,0,.35), 0 0 12px rgba(255,255,255,.5); }
-  .banner b span { color: #fff6c8; text-transform: uppercase; letter-spacing: .16em; }
+  .banner::after { content: ""; position: absolute; inset: 3px; border-radius: inherit; border: 2px dashed rgba(255,255,255,.95); }
+  .banner b { font: 800 clamp(15px, 3.1vw, 28px)/1.1 "Chalkboard SE", "Comic Sans MS", "Segoe Print", "Trebuchet MS", system-ui, sans-serif; letter-spacing: .04em; color: #ff4f9a;
+    text-shadow: 0 2px 0 #fff, 0 -1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff, 0 3px 6px rgba(194,24,91,.35); }
+  .banner b span { color: #8e5cf7; letter-spacing: .14em; text-transform: uppercase; }
   .banner i { font-style: normal; font-size: clamp(14px, 2.6vw, 26px); animation: pulse 1.4s ease-in-out infinite; }
+  .ear { position: absolute; top: -17px; width: 24px; height: 22px; background: #ffb3d9; border: 4px solid #fff; border-bottom: 0; border-radius: 60% 60% 0 0; }
+  .ear.l { left: 15%; transform: rotate(-14deg); } .ear.r { right: 15%; transform: rotate(14deg); }
+  .sp { position: absolute; font-size: 14px; text-decoration: none; animation: twinkle 1.6s ease-in-out infinite; }
+  .sp.s1 { top: -10px; right: 5%; } .sp.s2 { bottom: -9px; left: 4%; animation-delay: .8s; }
   @keyframes bob { 50% { transform: translateX(-50%) translateY(4px); } }
   @keyframes pulse { 50% { transform: scale(1.25); } }
-  @media (prefers-reduced-motion: reduce) { .banner, .banner i { animation: none; } }
+  @keyframes twinkle { 50% { opacity: .25; transform: scale(.6) rotate(25deg); } }
+  @media (prefers-reduced-motion: reduce) { .banner, .banner i, .sp { animation: none; } }
+
+  .bar { position: fixed; left: 50%; bottom: max(6px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 2;
+    display: flex; align-items: center; gap: 8px; max-width: calc(100vw - 16px); overflow-x: auto; scrollbar-width: none; padding: 5px 10px; border-radius: 20px;
+    background: rgba(255,255,255,.22); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 4px 16px rgba(0,0,0,.25), inset 0 0 0 2px rgba(255,255,255,.55); }
+  .bar::-webkit-scrollbar { display: none; }
+  .grp { display: flex; align-items: center; gap: 4px; padding-right: 8px; border-right: 2px dotted rgba(255,255,255,.65); flex: none; }
+  .grp:last-child { border: 0; padding-right: 0; }
+  .grp small { font: 800 11px system-ui, sans-serif; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.45); margin-right: 2px; white-space: nowrap; }
+  .bar button { font: 800 13px system-ui, sans-serif; min-height: 32px; min-width: 34px; padding: 0 10px; border-radius: 999px; border: 2px solid #fff; background: rgba(255,255,255,.85);
+    color: #c2185b; cursor: pointer; white-space: nowrap; transition: transform .12s; }
+  .bar button[aria-pressed="true"] { background: linear-gradient(135deg, #ff6fa5, #ffa24c); color: #fff; transform: translateY(-1px) scale(1.05); box-shadow: 0 3px 8px rgba(255,80,140,.55); }
+  .bar button:focus-visible { outline: 3px solid #fff6c8; outline-offset: 1px; }
   canvas { display: block; width: 100vw; height: 100vh; cursor: crosshair; }
 </style>
 </head>
 <body>
-<div class="banner" role="banner"><i aria-hidden="true">🎈</i><b>Only for <span>Sarah</span></b><i aria-hidden="true">💖</i></div>
+<div class="banner" role="banner"><span class="ear l"></span><span class="ear r"></span><u class="sp s1">✨</u><u class="sp s2">✨</u><i aria-hidden="true">🎀</i><b>Only for <span>Sarah</span></b><i aria-hidden="true">🎈</i></div>
 <canvas id="c"></canvas>
+<div class="bar" id="bar" role="toolbar" aria-label="Game options">
+  <div class="grp"><small>Balloons</small>
+    <button data-key="letters" title="Add letters A-Z to balloons">ABC</button>
+    <button data-key="numbers" title="Add numbers 0-9 to balloons">123</button>
+    <button data-key="words" title="Add cute words to balloons">Words</button></div>
+  <div class="grp"><small>Arrows</small>
+    <button data-key="multi" data-val="false" title="One arrow at a time">Single</button>
+    <button data-key="multi" data-val="true" title="Three arrows in a fan">Triple</button></div>
+  <div class="grp"><small>Color</small>
+    <button data-key="colorful" data-val="false" title="Classic arrows">Classic</button>
+    <button data-key="colorful" data-val="true" title="Rainbow arrows with sparkle trail">Rainbow</button></div>
+</div>
 <script>
 (() => {
   const cv = document.getElementById("c"), ctx = cv.getContext("2d");
   let W, H, GROUND;
   const resize = () => {
     const dpr = window.devicePixelRatio || 1;
-    W = innerWidth; H = innerHeight; GROUND = H - Math.max(50, H * 0.1);
+    W = innerWidth; H = innerHeight; GROUND = H - Math.max(62, H * 0.1);
     cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   };
   addEventListener("resize", resize); resize();
@@ -46,6 +77,40 @@
   const GAME_SECONDS = 60, GRAVITY = 900, MAX_SPEED = 1150, CHARGE_TIME = 0.9;
   const COLORS = ["#ff4d6d", "#ffd23f", "#3ddc97", "#4cc9f0", "#b388ff", "#ff9f1c"];
   const rand = (a, b) => a + Math.random() * (b - a);
+  const HUES = [340, 45, 150, 195, 265, 20];          // colorful arrow hues
+  const SPREAD = [-0.14, 0, 0.14];                      // triple-arrow fan (radians)
+  const WORDS = ["LOVE", "SMILE", "STAR", "JOY", "HUG", "FUN", "HAPPY", "SARAH"];
+
+  // ---- options (footer toggles), remembered between visits ----
+  const opt = { letters: false, numbers: false, words: false, multi: false, colorful: false };
+  try { const s = JSON.parse(localStorage.getItem("balloon-opt") || "{}"); for (const k in opt) if (typeof s[k] === "boolean") opt[k] = s[k]; } catch {}
+  const newNock = () => Array.from({ length: opt.multi ? 3 : 1 }, () => (opt.colorful ? HUES[(Math.random() * HUES.length) | 0] : null));
+  let nock = newNock();
+
+  function makeLabel() {
+    const pool = [];
+    if (opt.letters) pool.push(() => String.fromCharCode(65 + ((Math.random() * 26) | 0)));
+    if (opt.numbers) pool.push(() => String((Math.random() * 10) | 0));
+    if (opt.words) pool.push(() => WORDS[(Math.random() * WORDS.length) | 0]);
+    return pool.length ? pool[(Math.random() * pool.length) | 0]() : "";
+  }
+
+  const bar = document.getElementById("bar");
+  function syncUI() {
+    bar.querySelectorAll("button").forEach((b) => {
+      const v = b.dataset.val;
+      b.setAttribute("aria-pressed", String(v === undefined ? opt[b.dataset.key] : String(opt[b.dataset.key]) === v));
+    });
+  }
+  bar.addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    const k = b.dataset.key, v = b.dataset.val;
+    opt[k] = v === undefined ? !opt[k] : v === "true";
+    if (k === "multi" || k === "colorful") nock = newNock();
+    try { localStorage.setItem("balloon-opt", JSON.stringify(opt)); } catch {}
+    syncUI(); b.blur(); // blur so Space still means "shoot"
+  });
+  syncUI();
 
   let state = "menu"; // menu | play | over
   let balloons, arrows, particles, floaters, score, shots, hits, timeLeft, spawnTimer, charging, charge, aim, best;
@@ -61,9 +126,9 @@
   }
 
   function spawnBalloon() {
-    const r = rand(24, 38), speedBoost = 1 + (GAME_SECONDS - timeLeft) / GAME_SECONDS;
+    const label = makeLabel(), r = rand(label ? 30 : 24, 38), speedBoost = 1 + (GAME_SECONDS - timeLeft) / GAME_SECONDS;
     balloons.push({
-      x: rand(W * 0.35, W - 50), y: GROUND + r + 20, r,
+      x: rand(W * 0.35, W - 50), y: GROUND + r + 20, r, label,
       vy: -rand(50, 95) * speedBoost, phase: rand(0, 6.28), sway: rand(10, 30),
       color: COLORS[(Math.random() * COLORS.length) | 0],
       points: Math.round(60 - r), // small balloons are worth more
@@ -86,8 +151,11 @@
     if (!charging) return;
     charging = false;
     const o = bow(), speed = MAX_SPEED * (0.3 + 0.7 * Math.min(1, charge));
-    arrows.push({ x: o.x + Math.cos(aim) * 40, y: o.y + Math.sin(aim) * 40, vx: Math.cos(aim) * speed, vy: Math.sin(aim) * speed, combo: 0, stuck: 0, hit: false });
-    shots++; charge = 0;
+    nock.forEach((hue, i) => {
+      const ang = aim + (nock.length === 3 ? SPREAD[i] : 0);
+      arrows.push({ x: o.x + Math.cos(ang) * 40, y: o.y + Math.sin(ang) * 40, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, combo: 0, stuck: 0, hue });
+    });
+    shots += nock.length; charge = 0; nock = newNock();
   }
 
   // ---- input (mouse + touch via pointer events) ----
@@ -129,6 +197,7 @@
       const steps = 4, sdt = dt / steps;
       for (let i = 0; i < steps && !a.stuck; i++) {
         a.vy += GRAVITY * sdt; a.x += a.vx * sdt; a.y += a.vy * sdt;
+        if (a.hue != null && Math.random() < 0.35) particles.push({ x: a.x, y: a.y, vx: rand(-25, 25), vy: rand(-25, 25), life: 0.4, color: `hsl(${a.hue},95%,68%)` });
         const tx = a.x, ty = a.y;
         for (const b of balloons) {
           if (b.dead) continue;
@@ -170,13 +239,23 @@
     ctx.beginPath(); ctx.moveTo(b.x, b.y + b.r * 1.1); ctx.lineTo(b.x - 6, b.y + b.r * 1.1 + 9); ctx.lineTo(b.x + 6, b.y + b.r * 1.1 + 9); ctx.fill();
     ctx.fillStyle = "rgba(255,255,255,.45)";
     ctx.beginPath(); ctx.ellipse(b.x - b.r * 0.3, b.y - b.r * 0.4, b.r * 0.15, b.r * 0.3, 0.5, 0, 6.2832); ctx.fill();
+    if (b.label) { // fit the text inside the balloon
+      let size = b.r * (b.label.length === 1 ? 1.05 : 0.8);
+      ctx.font = `800 ${size}px "Trebuchet MS", system-ui, sans-serif`;
+      const maxW = b.r * 1.45;
+      if (ctx.measureText(b.label).width > maxW) { size = Math.max(9, size * maxW / ctx.measureText(b.label).width); ctx.font = `800 ${size}px "Trebuchet MS", system-ui, sans-serif`; }
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.lineWidth = Math.max(2, size * 0.14); ctx.strokeStyle = "rgba(0,0,0,.35)"; ctx.strokeText(b.label, b.x, b.y + 1);
+      ctx.fillStyle = "#fff"; ctx.fillText(b.label, b.x, b.y + 1);
+      ctx.textBaseline = "alphabetic";
+    }
   }
 
-  function drawArrow(x, y, ang, len = 48) {
+  function drawArrow(x, y, ang, len = 48, hue = null) {
     ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
-    ctx.strokeStyle = "#e8d9b5"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-len, 0); ctx.lineTo(0, 0); ctx.stroke();
-    ctx.fillStyle = "#cfd8dc"; ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-4, -5); ctx.lineTo(-4, 5); ctx.fill();
-    ctx.fillStyle = "#ff4d6d";
+    ctx.strokeStyle = hue == null ? "#e8d9b5" : `hsl(${hue},90%,60%)`; ctx.lineWidth = hue == null ? 3 : 4; ctx.beginPath(); ctx.moveTo(-len, 0); ctx.lineTo(0, 0); ctx.stroke();
+    ctx.fillStyle = hue == null ? "#cfd8dc" : `hsl(${hue},95%,82%)`; ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-4, -5); ctx.lineTo(-4, 5); ctx.fill();
+    ctx.fillStyle = hue == null ? "#ff4d6d" : `hsl(${(hue + 50) % 360},95%,65%)`;
     ctx.beginPath(); ctx.moveTo(-len, 0); ctx.lineTo(-len - 8, -6); ctx.lineTo(-len + 6, 0); ctx.lineTo(-len - 8, 6); ctx.fill();
     ctx.restore();
   }
@@ -188,7 +267,7 @@
     ctx.beginPath(); ctx.moveTo(0, -48); ctx.quadraticCurveTo(26, 0, 0, 48); ctx.stroke();
     ctx.strokeStyle = "#f5f5f5"; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(0, -48); ctx.lineTo(-pull, 0); ctx.lineTo(0, 48); ctx.stroke();
-    if (charging || state === "play") { ctx.restore(); ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(aim); drawArrow(30 - pull, 0, 0, 52); }
+    if (charging || state === "play") { ctx.restore(); ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(aim); nock.forEach((hue, i) => { ctx.save(); ctx.rotate(nock.length === 3 ? SPREAD[i] : 0); drawArrow(30 - pull, 0, 0, 52, hue); ctx.restore(); }); }
     ctx.restore();
     // aim guide (dotted trajectory preview while charging)
     if (charging) {
@@ -210,7 +289,7 @@
     drawBackground();
     if (state === "menu") { balloons = balloons || []; }
     (balloons || []).forEach(drawBalloon);
-    (arrows || []).forEach((a) => drawArrow(a.x, a.y, a.stuck ? Math.atan2(a.vy, a.vx) : Math.atan2(a.vy, a.vx)));
+    (arrows || []).forEach((a) => drawArrow(a.x, a.y, Math.atan2(a.vy, a.vx), 48, a.hue));
     (particles || []).forEach((p) => { ctx.globalAlpha = Math.max(0, p.life / 0.7); ctx.fillStyle = p.color; ctx.fillRect(p.x - 3, p.y - 3, 6, 6); });
     ctx.globalAlpha = 1;
     drawBow();
@@ -234,12 +313,13 @@
         text("Move to aim. Press and hold to draw the bow, release to shoot.", cx, cy - 20, Math.min(18, W / 22), "#cfe8ff", "center", "500");
         text("Keyboard: Up/Down to aim, hold Space to draw, release to shoot.", cx, cy + 8, Math.min(16, W / 24), "#9fc3e6", "center", "500");
         text("Small balloons score more. One arrow popping many balloons = combo.", cx, cy + 36, Math.min(16, W / 24), "#9fc3e6", "center", "500");
+        text("Use the buttons below to add letters, numbers or words, and pick your arrows.", cx, cy + 62, Math.min(16, W / 24), "#ffc2e2", "center", "600");
       } else {
         text("Time's up!", cx, cy - 70, Math.min(54, W / 9), "#fff", "center", "800");
         text(`Score ${score}${score >= best && score > 0 ? "  (new best!)" : ""}`, cx, cy - 20, 28, "#ffd23f", "center");
         text(`Accuracy ${shots ? Math.round((hits / shots) * 100) : 0}%  (${hits} of ${shots} arrows)`, cx, cy + 14, 18, "#cfe8ff", "center", "500");
       }
-      text(state === "menu" ? "Tap or press Space to start" : "Tap or press Space to play again", cx, cy + 80, 22, "#fff", "center");
+      text(state === "menu" ? "Tap or press Space to start" : "Tap or press Space to play again", cx, cy + (state === "menu" ? 104 : 80), 22, "#fff", "center");
     }
   }
 
