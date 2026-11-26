@@ -100,7 +100,10 @@
   <div class="grp"><small>Balloons</small>
     <button data-key="letters" title="Add letters A-Z to balloons">ABC</button>
     <button data-key="numbers" title="Add numbers 0-9 to balloons">123</button>
-    <button data-key="words" title="Add cute words to balloons">Words</button></div>
+    <button data-key="words" title="Add cute words to balloons">Words</button>
+    <button data-key="arLetters" title="Add Arabic letters to balloons">أبج</button>
+    <button data-key="arNumbers" title="Add Arabic numbers ٠-٩ to balloons">١٢٣</button>
+    <button data-key="arWords" title="Add Arabic words to balloons">كلمات</button></div>
   <div class="grp"><small>Arrows</small>
     <button data-key="multi" data-val="false" title="One arrow at a time">Single</button>
     <button data-key="multi" data-val="true" title="Three arrows in a fan">Triple</button></div>
@@ -125,7 +128,10 @@
   const HUES = [340, 45, 150, 195, 265, 20];            // colorful arrow hues
   const SPREAD = [-0.14, 0, 0.14];                        // triple-arrow fan (radians)
   const WORDS = ["LOVE", "SMILE", "STAR", "JOY", "HUG", "FUN", "HAPPY", "SARAH", "ZAHRA"];
-  const GROUPS = [{ name: "Pink group", color: "#ff4f9a" }, { name: "Blue group", color: "#4cc9f0" }, { name: "Green group", color: "#3ddc97" }, { name: "Gold group", color: "#ffd23f" }];
+  const AR_LETTERS = [..."ابتثجحخدذرزسشصضطظعغفقكلمنهوي"];
+  const AR_NUMBERS = [..."٠١٢٣٤٥٦٧٨٩"];
+  const AR_WORDS = ["حب", "ابتسامة", "نجمة", "فرح", "عناق", "سعادة", "سارة", "زهراء", "زايد"]; // love, smile, star, joy, hug, happiness, Sarah, Zahra, Zayed
+  const GROUPS =[{ name: "Pink group", color: "#ff4f9a" }, { name: "Blue group", color: "#4cc9f0" }, { name: "Green group", color: "#3ddc97" }, { name: "Gold group", color: "#ffd23f" }];
   const rand = (a, b) => a + Math.random() * (b - a);
 
   // Seeded random: every player in the same round/match gets the same balloons.
@@ -134,7 +140,7 @@
   let rng = Math.random;
 
   // ---- options (footer toggles), remembered between visits ----
-  const opt = { letters: false, numbers: false, words: false, multi: false, colorful: false };
+  const opt = { letters: false, numbers: false, words: false, arLetters: false, arNumbers: false, arWords: false, multi: false, colorful: false };
   try { const s = JSON.parse(localStorage.getItem("balloon-opt") || "{}"); for (const k in opt) if (typeof s[k] === "boolean") opt[k] = s[k]; } catch {}
   const newNock = () => Array.from({ length: opt.multi ? 3 : 1 }, () => (opt.colorful ? HUES[(Math.random() * HUES.length) | 0] : null));
   let nock = newNock();
@@ -144,6 +150,10 @@
     if (opt.letters) pool.push(() => String.fromCharCode(65 + ((rng() * 26) | 0)));
     if (opt.numbers) pool.push(() => String((rng() * 10) | 0));
     if (opt.words) pool.push(() => WORDS[(rng() * WORDS.length) | 0]);
+    const pick = (a) => a[(rng() * a.length) | 0];
+    if (opt.arLetters) pool.push(() => pick(AR_LETTERS));
+    if (opt.arNumbers) pool.push(() => pick(AR_NUMBERS));
+    if (opt.arWords) pool.push(() => pick(AR_WORDS));
     return pool.length ? pool[(rng() * pool.length) | 0]() : "";
   }
 
@@ -273,9 +283,17 @@
     floaters = floaters.filter((f) => f.life > 0);
   }
 
+  // ---- visitor / play tracking (no-op unless TRACK_URL is set) ----
+  // Set to your tracking server, e.g. "https://my-server.example.com". Leave "" to disable.
+  const TRACK_URL = "";
+  let vid = ""; try { vid = localStorage.getItem("balloon-vid") || ""; if (!vid) { vid = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()); localStorage.setItem("balloon-vid", vid); } } catch { vid = "anon-" + Math.random().toString(36).slice(2, 10); }
+  const track = (data) => { if (!TRACK_URL) return; try { fetch(TRACK_URL.replace(/\/$/, "") + "/api/track", { method: "POST", body: JSON.stringify({ vid, ...data }), keepalive: true }).catch(() => {}); } catch {} };
+  track({ type: "visit", ref: document.referrer, lang: navigator.language });
+
   function finishTurn() {
     state = "menu"; charging = false;
     const acc = shots ? Math.round((hits / shots) * 100) : 0, cb = onTurnEnd; onTurnEnd = null;
+    if (score > 0 || shots > 0) track({ type: "play", mode: session ? session.mode : "solo", player: cur.name, group: cur.group, score, acc, seconds: turnSeconds, opts: opt });
     if (cb) cb(score, acc);
   }
 

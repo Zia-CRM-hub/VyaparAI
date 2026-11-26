@@ -1,5 +1,5 @@
 // Cache-first service worker so the game works offline after the first visit.
-const CACHE = "balloon-shooter-v4";
+const CACHE = "balloon-shooter-v5";
 const FILES = ["./", "./index.html", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/icon-maskable-512.png"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", (e) => {
