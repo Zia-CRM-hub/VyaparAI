@@ -13,16 +13,20 @@
 <title>Balloon Shooter</title>
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1d3a; font-family: system-ui, sans-serif; touch-action: none; overscroll-behavior: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-  .banner { position: fixed; top: max(16px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 2; pointer-events: none;
+  canvas { display: block; width: 100vw; height: 100vh; cursor: crosshair; }
+
+  /* ---- banner ---- */
+  .banner { position: fixed; top: max(16px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 4; pointer-events: none;
     display: flex; align-items: center; gap: clamp(6px, 1.2vw, 12px); padding: clamp(5px, 1.1vh, 9px) clamp(18px, 3vw, 36px);
     border-radius: 999px; white-space: nowrap; border: 4px solid #fff;
     background: linear-gradient(100deg, #ffd1e8, #ffb3d9 45%, #e3c8ff);
     box-shadow: 0 6px 0 #f48fb8, 0 12px 22px rgba(0,0,0,.3), 0 0 26px rgba(255,170,215,.7);
     animation: bob 3s ease-in-out infinite; }
   .banner::after { content: ""; position: absolute; inset: 3px; border-radius: inherit; border: 2px dashed rgba(255,255,255,.95); }
-  .banner b { font: 800 clamp(15px, 3.1vw, 28px)/1.1 "Chalkboard SE", "Comic Sans MS", "Segoe Print", "Trebuchet MS", system-ui, sans-serif; letter-spacing: .04em; color: #ff4f9a;
+  .banner b { font: 800 clamp(14px, 2.8vw, 26px)/1.1 "Chalkboard SE", "Comic Sans MS", "Segoe Print", "Trebuchet MS", system-ui, sans-serif; letter-spacing: .04em; color: #ff4f9a;
     text-shadow: 0 2px 0 #fff, 0 -1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff, 0 3px 6px rgba(194,24,91,.35); }
-  .banner b span { color: #8e5cf7; letter-spacing: .14em; text-transform: uppercase; }
+  .banner b span { color: #8e5cf7; letter-spacing: .1em; text-transform: uppercase; }
+  .banner b em { font-style: normal; color: #ff9f1c; margin: 0 .15em; }
   .banner i { font-style: normal; font-size: clamp(14px, 2.6vw, 26px); animation: pulse 1.4s ease-in-out infinite; }
   .ear { position: absolute; top: -17px; width: 24px; height: 22px; background: #ffb3d9; border: 4px solid #fff; border-bottom: 0; border-radius: 60% 60% 0 0; }
   .ear.l { left: 15%; transform: rotate(-14deg); } .ear.r { right: 15%; transform: rotate(14deg); }
@@ -33,24 +37,65 @@
   @keyframes twinkle { 50% { opacity: .25; transform: scale(.6) rotate(25deg); } }
   @media (prefers-reduced-motion: reduce) { .banner, .banner i, .sp { animation: none; } }
 
-  .bar { position: fixed; left: 50%; bottom: max(6px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 2;
+  /* ---- footer options ---- */
+  .bar { position: fixed; left: 50%; bottom: max(6px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 4;
     display: flex; align-items: center; gap: 8px; max-width: calc(100vw - 16px); overflow-x: auto; scrollbar-width: none; padding: 5px 10px; border-radius: 20px;
     background: rgba(255,255,255,.22); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
     box-shadow: 0 4px 16px rgba(0,0,0,.25), inset 0 0 0 2px rgba(255,255,255,.55); }
   .bar::-webkit-scrollbar { display: none; }
+  .bar.locked { opacity: .55; pointer-events: none; }
   .grp { display: flex; align-items: center; gap: 4px; padding-right: 8px; border-right: 2px dotted rgba(255,255,255,.65); flex: none; }
   .grp:last-child { border: 0; padding-right: 0; }
   .grp small { font: 800 11px system-ui, sans-serif; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.45); margin-right: 2px; white-space: nowrap; }
   .bar button { font: 800 13px system-ui, sans-serif; min-height: 32px; min-width: 34px; padding: 0 10px; border-radius: 999px; border: 2px solid #fff; background: rgba(255,255,255,.85);
     color: #c2185b; cursor: pointer; white-space: nowrap; transition: transform .12s; }
   .bar button[aria-pressed="true"] { background: linear-gradient(135deg, #ff6fa5, #ffa24c); color: #fff; transform: translateY(-1px) scale(1.05); box-shadow: 0 3px 8px rgba(255,80,140,.55); }
-  .bar button:focus-visible { outline: 3px solid #fff6c8; outline-offset: 1px; }
-  canvas { display: block; width: 100vw; height: 100vh; cursor: crosshair; }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid #fff6c8; outline-offset: 1px; }
+
+  /* ---- menu / lobby panel ---- */
+  .panel { position: fixed; inset: 0; z-index: 3; display: flex; align-items: flex-start; justify-content: center; overflow-y: auto;
+    padding: 84px 12px 64px; box-sizing: border-box; background: rgba(5,12,28,.8); touch-action: pan-y; user-select: auto; -webkit-user-select: auto; }
+  .panel[hidden] { display: none; }
+  .card { width: min(560px, 100%); margin: auto; color: #fff; text-align: center; }
+  .card h1 { margin: 0 0 4px; font: 800 clamp(26px, 6vw, 44px)/1.1 system-ui, sans-serif; }
+  .card h2 { margin: 0 0 6px; font: 800 clamp(20px, 4.5vw, 30px)/1.15 system-ui, sans-serif; }
+  .card p { margin: 4px 0; color: #cfe8ff; font-size: 14px; }
+  .card p.hint { color: #ffc2e2; font-weight: 600; }
+  .card p.note { color: #ffd23f; font-weight: 700; font-size: 15px; }
+  .btn { font: 800 16px system-ui, sans-serif; color: #fff; border: 3px solid #fff; border-radius: 999px; padding: 10px 22px; margin: 6px 4px; cursor: pointer;
+    background: linear-gradient(135deg, #ff6fa5, #ffa24c); box-shadow: 0 4px 0 #c2185b, 0 8px 16px rgba(0,0,0,.3); }
+  .btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #c2185b; }
+  .btn.alt { background: linear-gradient(135deg, #8e5cf7, #4cc9f0); box-shadow: 0 4px 0 #4527a0, 0 8px 16px rgba(0,0,0,.3); }
+  .btn.ghost { background: rgba(255,255,255,.15); box-shadow: none; }
+  .btn.big { font-size: 20px; padding: 14px 34px; }
+  .modes { display: grid; gap: 8px; margin: 14px 0; }
+  .mode { text-align: left; padding: 12px 18px; margin: 0; display: block; width: 100%; }
+  .mode small { display: block; font-weight: 600; opacity: .92; font-size: 12px; margin-top: 2px; }
+  .rows { display: grid; gap: 6px; margin: 12px 0; text-align: left; }
+  .row { display: flex; gap: 6px; align-items: center; }
+  .row .num { width: 22px; text-align: center; font-weight: 800; color: #ffc2e2; }
+  .row input, .opts select, .row select { font: 700 16px system-ui, sans-serif; padding: 8px 12px; border-radius: 12px; border: 3px solid #fff; background: rgba(255,255,255,.95); color: #333; min-width: 0; }
+  .row input { flex: 1; }
+  .row .x { font: 800 14px system-ui; width: 32px; height: 32px; border-radius: 50%; border: 2px solid #fff; background: rgba(255,255,255,.15); color: #fff; cursor: pointer; }
+  .opts { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; margin: 8px 0; font-size: 14px; color: #cfe8ff; }
+  .tbl { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 16px; }
+  .tbl td, .tbl th { padding: 7px 8px; border-bottom: 1px solid rgba(255,255,255,.2); text-align: left; }
+  .tbl td:last-child, .tbl th:last-child { text-align: right; font-weight: 800; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .bracket { display: flex; gap: 10px; justify-content: center; align-items: stretch; margin: 12px 0; overflow-x: auto; text-align: left; font-size: 13px; }
+  .bcol { display: flex; flex-direction: column; justify-content: space-around; gap: 8px; min-width: 110px; }
+  .bcol h4 { margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #ffc2e2; text-align: center; }
+  .match { background: rgba(255,255,255,.12); border: 2px solid rgba(255,255,255,.3); border-radius: 10px; padding: 4px 8px; }
+  .match.now { border-color: #ffd23f; box-shadow: 0 0 10px rgba(255,210,63,.6); }
+  .match div { display: flex; justify-content: space-between; gap: 8px; }
+  .match .w { font-weight: 800; color: #ffd23f; } .match .l { opacity: .6; }
+  .crown { font-size: 54px; }
 </style>
 </head>
 <body>
-<div class="banner" role="banner"><span class="ear l"></span><span class="ear r"></span><u class="sp s1">✨</u><u class="sp s2">✨</u><i aria-hidden="true">🎀</i><b>Only for <span>Sarah</span></b><i aria-hidden="true">🎈</i></div>
+<div class="banner" role="banner"><span class="ear l"></span><span class="ear r"></span><u class="sp s1">✨</u><u class="sp s2">✨</u><i aria-hidden="true">🎀</i><b>Only for <span>Zahra</span><em>&amp;</em><span>Zayed</span><em>&amp;</em><span>Sarah</span></b><i aria-hidden="true">🎈</i></div>
 <canvas id="c"></canvas>
+<div class="panel" id="panel"></div>
 <div class="bar" id="bar" role="toolbar" aria-label="Game options">
   <div class="grp"><small>Balloons</small>
     <button data-key="letters" title="Add letters A-Z to balloons">ABC</button>
@@ -66,6 +111,7 @@
 <script>
 (() => {
   const cv = document.getElementById("c"), ctx = cv.getContext("2d");
+  const panel = document.getElementById("panel"), bar = document.getElementById("bar");
   let W, H, GROUND;
   const resize = () => {
     const dpr = window.devicePixelRatio || 1;
@@ -74,12 +120,18 @@
   };
   addEventListener("resize", resize); resize();
 
-  const GAME_SECONDS = 60, GRAVITY = 900, MAX_SPEED = 1150, CHARGE_TIME = 0.9;
+  const SOLO_SECONDS = 60, GRAVITY = 900, MAX_SPEED = 1150, CHARGE_TIME = 0.9;
   const COLORS = ["#ff4d6d", "#ffd23f", "#3ddc97", "#4cc9f0", "#b388ff", "#ff9f1c"];
+  const HUES = [340, 45, 150, 195, 265, 20];            // colorful arrow hues
+  const SPREAD = [-0.14, 0, 0.14];                        // triple-arrow fan (radians)
+  const WORDS = ["LOVE", "SMILE", "STAR", "JOY", "HUG", "FUN", "HAPPY", "SARAH", "ZAHRA"];
+  const GROUPS = [{ name: "Pink group", color: "#ff4f9a" }, { name: "Blue group", color: "#4cc9f0" }, { name: "Green group", color: "#3ddc97" }, { name: "Gold group", color: "#ffd23f" }];
   const rand = (a, b) => a + Math.random() * (b - a);
-  const HUES = [340, 45, 150, 195, 265, 20];          // colorful arrow hues
-  const SPREAD = [-0.14, 0, 0.14];                      // triple-arrow fan (radians)
-  const WORDS = ["LOVE", "SMILE", "STAR", "JOY", "HUG", "FUN", "HAPPY", "SARAH"];
+
+  // Seeded random: every player in the same round/match gets the same balloons.
+  function mulberry32(a) { return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+  const newSeed = () => (Math.random() * 4294967296) >>> 0;
+  let rng = Math.random;
 
   // ---- options (footer toggles), remembered between visits ----
   const opt = { letters: false, numbers: false, words: false, multi: false, colorful: false };
@@ -89,13 +141,12 @@
 
   function makeLabel() {
     const pool = [];
-    if (opt.letters) pool.push(() => String.fromCharCode(65 + ((Math.random() * 26) | 0)));
-    if (opt.numbers) pool.push(() => String((Math.random() * 10) | 0));
-    if (opt.words) pool.push(() => WORDS[(Math.random() * WORDS.length) | 0]);
-    return pool.length ? pool[(Math.random() * pool.length) | 0]() : "";
+    if (opt.letters) pool.push(() => String.fromCharCode(65 + ((rng() * 26) | 0)));
+    if (opt.numbers) pool.push(() => String((rng() * 10) | 0));
+    if (opt.words) pool.push(() => WORDS[(rng() * WORDS.length) | 0]);
+    return pool.length ? pool[(rng() * pool.length) | 0]() : "";
   }
 
-  const bar = document.getElementById("bar");
   function syncUI() {
     bar.querySelectorAll("button").forEach((b) => {
       const v = b.dataset.val;
@@ -112,25 +163,30 @@
   });
   syncUI();
 
-  let state = "menu"; // menu | play | over
-  let balloons, arrows, particles, floaters, score, shots, hits, timeLeft, spawnTimer, charging, charge, aim, best;
-  try { best = +localStorage.getItem("balloon-best") || 0; } catch { best = 0; }
+  // ---- game state ----
+  let state = "menu"; // menu | play   (menu = a panel screen is showing)
+  let balloons = [], arrows = [], particles = [], floaters = [];
+  let score = 0, shots = 0, hits = 0, timeLeft = 0, turnSeconds = SOLO_SECONDS, spawnTimer = 0, charging = false, charge = 0, aim = -0.35, best = 0;
+  let cur = { name: "You", group: 0 }, onTurnEnd = null, session = null;
+  try { best = +localStorage.getItem("balloon-best") || 0; } catch {}
 
   const bow = () => ({ x: Math.min(110, W * 0.12), y: GROUND - 90 });
 
-  function reset() {
+  function startTurn(player, seed, seconds, done) {
+    cur = player; turnSeconds = seconds; rng = mulberry32(seed); onTurnEnd = done;
     balloons = []; arrows = []; particles = []; floaters = [];
-    score = 0; shots = 0; hits = 0; timeLeft = GAME_SECONDS; spawnTimer = 0;
-    charging = false; charge = 0; aim = -0.35;
-    state = "play";
+    score = 0; shots = 0; hits = 0; timeLeft = seconds; spawnTimer = 0;
+    charging = false; charge = 0; aim = -0.35; nock = newNock();
+    panel.hidden = true; state = "play";
   }
 
   function spawnBalloon() {
-    const label = makeLabel(), r = rand(label ? 30 : 24, 38), speedBoost = 1 + (GAME_SECONDS - timeLeft) / GAME_SECONDS;
+    const sr = (a, b) => a + rng() * (b - a);
+    const label = makeLabel(), r = sr(label ? 30 : 24, 38), speedBoost = 1 + (turnSeconds - timeLeft) / turnSeconds;
     balloons.push({
-      x: rand(W * 0.35, W - 50), y: GROUND + r + 20, r, label,
-      vy: -rand(50, 95) * speedBoost, phase: rand(0, 6.28), sway: rand(10, 30),
-      color: COLORS[(Math.random() * COLORS.length) | 0],
+      x: sr(W * 0.35, W - 50), y: GROUND + r + 20, r, label,
+      vy: -sr(50, 95) * speedBoost, phase: sr(0, 6.28), sway: sr(10, 30),
+      color: COLORS[(rng() * COLORS.length) | 0],
       points: Math.round(60 - r), // small balloons are worth more
     });
   }
@@ -148,7 +204,7 @@
   }
 
   function fire() {
-    if (!charging) return;
+    if (!charging || state !== "play") return;
     charging = false;
     const o = bow(), speed = MAX_SPEED * (0.3 + 0.7 * Math.min(1, charge));
     nock.forEach((hue, i) => {
@@ -161,18 +217,17 @@
   // ---- input (mouse + touch via pointer events) ----
   cv.addEventListener("pointermove", (e) => { if (state === "play") aimFrom(e.clientX, e.clientY); });
   cv.addEventListener("pointerdown", (e) => {
-    if (state !== "play") { reset(); return; }
+    if (state !== "play") return;
     aimFrom(e.clientX, e.clientY); charging = true; charge = 0;
     cv.setPointerCapture(e.pointerId);
   });
   cv.addEventListener("pointerup", fire);
   cv.addEventListener("pointercancel", () => { charging = false; charge = 0; });
   addEventListener("keydown", (e) => {
-    if (e.code === "Space") { e.preventDefault(); if (state !== "play") reset(); else if (!charging) { charging = true; charge = 0; } }
-    if (state === "play") {
-      if (e.code === "ArrowUp") aim = Math.max(-1.45, aim - 0.04);
-      if (e.code === "ArrowDown") aim = Math.min(0.25, aim + 0.04);
-    }
+    if (state !== "play") return;
+    if (e.code === "Space") { e.preventDefault(); if (!charging) { charging = true; charge = 0; } }
+    if (e.code === "ArrowUp") aim = Math.max(-1.45, aim - 0.04);
+    if (e.code === "ArrowDown") aim = Math.min(0.25, aim + 0.04);
   });
   addEventListener("keyup", (e) => { if (e.code === "Space") fire(); });
 
@@ -180,14 +235,11 @@
   function update(dt) {
     if (state !== "play") return;
     timeLeft -= dt;
-    if (timeLeft <= 0) {
-      timeLeft = 0; state = "over";
-      if (score > best) { best = score; try { localStorage.setItem("balloon-best", best); } catch {} }
-    }
+    if (timeLeft <= 0) { timeLeft = 0; finishTurn(); return; }
     if (charging) charge = Math.min(1, charge + dt / CHARGE_TIME);
 
     spawnTimer -= dt;
-    if (spawnTimer <= 0) { spawnBalloon(); spawnTimer = rand(0.45, 0.9) * (1 - 0.4 * (1 - timeLeft / GAME_SECONDS)); }
+    if (spawnTimer <= 0) { spawnBalloon(); spawnTimer = (0.45 + rng() * 0.45) * (1 - 0.4 * (1 - timeLeft / turnSeconds)); }
 
     for (const b of balloons) { b.y += b.vy * dt; b.phase += dt * 2; b.x += Math.sin(b.phase) * b.sway * dt; }
     balloons = balloons.filter((b) => b.y > -b.r * 2);
@@ -221,6 +273,12 @@
     floaters = floaters.filter((f) => f.life > 0);
   }
 
+  function finishTurn() {
+    state = "menu"; charging = false;
+    const acc = shots ? Math.round((hits / shots) * 100) : 0, cb = onTurnEnd; onTurnEnd = null;
+    if (cb) cb(score, acc);
+  }
+
   // ---- draw ----
   function drawBackground() {
     const g = ctx.createLinearGradient(0, 0, 0, GROUND);
@@ -240,10 +298,11 @@
     ctx.fillStyle = "rgba(255,255,255,.45)";
     ctx.beginPath(); ctx.ellipse(b.x - b.r * 0.3, b.y - b.r * 0.4, b.r * 0.15, b.r * 0.3, 0.5, 0, 6.2832); ctx.fill();
     if (b.label) { // fit the text inside the balloon
+      const font = (s) => `800 ${s}px "Trebuchet MS", system-ui, sans-serif`;
       let size = b.r * (b.label.length === 1 ? 1.05 : 0.8);
-      ctx.font = `800 ${size}px "Trebuchet MS", system-ui, sans-serif`;
-      const maxW = b.r * 1.45;
-      if (ctx.measureText(b.label).width > maxW) { size = Math.max(9, size * maxW / ctx.measureText(b.label).width); ctx.font = `800 ${size}px "Trebuchet MS", system-ui, sans-serif`; }
+      ctx.font = font(size);
+      const maxW = b.r * 1.45, w = ctx.measureText(b.label).width;
+      if (w > maxW) { size = Math.max(9, (size * maxW) / w); ctx.font = font(size); }
       ctx.textAlign = "center"; ctx.textBaseline = "middle";
       ctx.lineWidth = Math.max(2, size * 0.14); ctx.strokeStyle = "rgba(0,0,0,.35)"; ctx.strokeText(b.label, b.x, b.y + 1);
       ctx.fillStyle = "#fff"; ctx.fillText(b.label, b.x, b.y + 1);
@@ -267,10 +326,9 @@
     ctx.beginPath(); ctx.moveTo(0, -48); ctx.quadraticCurveTo(26, 0, 0, 48); ctx.stroke();
     ctx.strokeStyle = "#f5f5f5"; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(0, -48); ctx.lineTo(-pull, 0); ctx.lineTo(0, 48); ctx.stroke();
-    if (charging || state === "play") { ctx.restore(); ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(aim); nock.forEach((hue, i) => { ctx.save(); ctx.rotate(nock.length === 3 ? SPREAD[i] : 0); drawArrow(30 - pull, 0, 0, 52, hue); ctx.restore(); }); }
+    nock.forEach((hue, i) => { ctx.save(); ctx.rotate(nock.length === 3 ? SPREAD[i] : 0); drawArrow(30 - pull, 0, 0, 52, hue); ctx.restore(); });
     ctx.restore();
-    // aim guide (dotted trajectory preview while charging)
-    if (charging) {
+    if (charging) { // dotted trajectory preview
       const sp = MAX_SPEED * (0.3 + 0.7 * charge);
       let x = o.x + Math.cos(aim) * 40, y = o.y + Math.sin(aim) * 40, vx = Math.cos(aim) * sp, vy = Math.sin(aim) * sp;
       ctx.fillStyle = "rgba(255,255,255,.55)";
@@ -287,43 +345,207 @@
 
   function draw() {
     drawBackground();
-    if (state === "menu") { balloons = balloons || []; }
-    (balloons || []).forEach(drawBalloon);
-    (arrows || []).forEach((a) => drawArrow(a.x, a.y, Math.atan2(a.vy, a.vx), 48, a.hue));
-    (particles || []).forEach((p) => { ctx.globalAlpha = Math.max(0, p.life / 0.7); ctx.fillStyle = p.color; ctx.fillRect(p.x - 3, p.y - 3, 6, 6); });
+    balloons.forEach(drawBalloon);
+    arrows.forEach((a) => drawArrow(a.x, a.y, Math.atan2(a.vy, a.vx), 48, a.hue));
+    particles.forEach((p) => { ctx.globalAlpha = Math.max(0, p.life / 0.7); ctx.fillStyle = p.color; ctx.fillRect(p.x - 3, p.y - 3, 6, 6); });
     ctx.globalAlpha = 1;
     drawBow();
-    (floaters || []).forEach((f) => { ctx.globalAlpha = Math.max(0, f.life); text(f.text, f.x, f.y, 20, "#fff", "center"); });
+    floaters.forEach((f) => { ctx.globalAlpha = Math.max(0, f.life); text(f.text, f.x, f.y, 20, "#fff", "center"); });
     ctx.globalAlpha = 1;
 
-    if (state === "play" || state === "over") {
+    if (state === "play") {
       text("Score " + score, 20, 36, 26);
-      text("Best " + best, 20, 62, 16, "#cfe8ff", "left", "600");
+      if (session && session.mode !== "solo") text(cur.name + (session.mode === "multi" && session.useGroups ? "  ·  " + GROUPS[cur.group].name : ""), 20, 62, 16, session.mode === "multi" ? GROUPS[cur.group].color : "#ffc2e2", "left", "800");
+      else text("Best " + best, 20, 62, 16, "#cfe8ff", "left", "600");
       text(Math.ceil(timeLeft) + "s", W - 20, 36, 26, timeLeft <= 10 ? "#ff6b6b" : "#fff", "right");
       if (charging) { // power bar
         const o = bow(); ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.fillRect(o.x - 40, o.y + 62, 80, 8);
         ctx.fillStyle = `hsl(${120 - charge * 120},85%,55%)`; ctx.fillRect(o.x - 40, o.y + 62, 80 * charge, 8);
       }
     }
-    if (state === "menu" || state === "over") {
-      ctx.fillStyle = "rgba(5,12,28,.72)"; ctx.fillRect(0, 0, W, H);
-      const cx = W / 2, cy = H / 2;
-      if (state === "menu") {
-        text("Balloon Shooter", cx, cy - 70, Math.min(54, W / 9), "#fff", "center", "800");
-        text("Move to aim. Press and hold to draw the bow, release to shoot.", cx, cy - 20, Math.min(18, W / 22), "#cfe8ff", "center", "500");
-        text("Keyboard: Up/Down to aim, hold Space to draw, release to shoot.", cx, cy + 8, Math.min(16, W / 24), "#9fc3e6", "center", "500");
-        text("Small balloons score more. One arrow popping many balloons = combo.", cx, cy + 36, Math.min(16, W / 24), "#9fc3e6", "center", "500");
-        text("Use the buttons below to add letters, numbers or words, and pick your arrows.", cx, cy + 62, Math.min(16, W / 24), "#ffc2e2", "center", "600");
-      } else {
-        text("Time's up!", cx, cy - 70, Math.min(54, W / 9), "#fff", "center", "800");
-        text(`Score ${score}${score >= best && score > 0 ? "  (new best!)" : ""}`, cx, cy - 20, 28, "#ffd23f", "center");
-        text(`Accuracy ${shots ? Math.round((hits / shots) * 100) : 0}%  (${hits} of ${shots} arrows)`, cx, cy + 14, 18, "#cfe8ff", "center", "500");
+  }
+
+  // =====================================================================
+  //  Screens: home, setup, ready, results (all built with textContent, never innerHTML)
+  // =====================================================================
+  const h = (tag, props = {}, ...kids) => {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(props)) {
+      if (k === "class") el.className = v; else if (k === "style") el.style.cssText = v;
+      else if (k.startsWith("on")) el.addEventListener(k.slice(2), v); else el[k] = v;
+    }
+    for (const kid of kids.flat()) if (kid !== null && kid !== undefined && kid !== false) el.append(kid);
+    return el;
+  };
+  const show = (...nodes) => { panel.replaceChildren(h("div", { class: "card" }, ...nodes)); panel.hidden = false; panel.scrollTop = 0; };
+  const lockOpts = (on) => bar.classList.toggle("locked", on);
+  const btn = (label, onclick, cls = "") => h("button", { class: "btn " + cls, onclick }, label);
+  const medal = (i) => ["🥇", "🥈", "🥉"][i] || String(i + 1) + ".";
+
+  const setup = { players: [{ name: "Zahra", group: 0 }, { name: "Sarah", group: 1 }], rounds: 1, seconds: 30 };
+
+  function goHome() {
+    session = null; lockOpts(false); state = "menu";
+    balloons = []; arrows = []; particles = []; floaters = []; onTurnEnd = null;
+    show(
+      h("h1", {}, "🎈 Balloon Shooter"),
+      h("p", {}, "Choose how you want to play"),
+      h("div", { class: "modes" },
+        btn(h("span", {}, "🎯 Solo", h("small", {}, "60 seconds, beat your best score")), startSolo, "mode"),
+        btn(h("span", {}, "👯 Multiplayer", h("small", {}, "Take turns on one device. Everyone gets the same balloons. Add groups to play as teams")), () => renderSetup("multi"), "mode alt"),
+        btn(h("span", {}, "🏆 Tournament", h("small", {}, "Knockout bracket for 2 to 8 players, head to head")), () => renderSetup("tourney"), "mode")),
+      h("p", { class: "hint" }, "Move to aim. Press and hold to draw the bow, release to shoot."),
+      h("p", {}, "Keyboard: Up/Down aim, hold Space to draw, release to shoot."),
+      h("p", {}, "Small balloons score more. One arrow popping many balloons is a combo."),
+      h("p", { class: "hint" }, "Use the buttons below to add letters, numbers or words, and pick your arrows."),
+    );
+  }
+
+  // ---- Solo ----
+  function startSolo() {
+    session = { mode: "solo" };
+    startTurn({ name: "You", group: 0 }, newSeed(), SOLO_SECONDS, (sc, acc) => {
+      const isBest = sc > best && sc > 0;
+      if (isBest) { best = sc; try { localStorage.setItem("balloon-best", best); } catch {} }
+      show(h("h2", {}, "Time's up!"), h("p", { class: "note", style: "font-size:24px" }, `Score ${sc}${isBest ? "  (new best!)" : ""}`),
+        h("p", {}, `Accuracy ${acc}%  (${hits} of ${shots} arrows)`), h("p", {}, `Best ${best}`),
+        btn("Play again", startSolo, "big"), btn("Menu", goHome, "ghost"));
+    });
+  }
+
+  // ---- Setup (multiplayer and tournament) ----
+  function renderSetup(mode) {
+    const multi = mode === "multi", max = multi ? 6 : 8;
+    if (setup.players.length > max) setup.players.length = max;
+    const rows = setup.players.map((p, i) => {
+      const sel = multi ? h("select", { "aria-label": "Group for player " + (i + 1), style: `border-color:${GROUPS[p.group].color}`, onchange: (e) => { p.group = +e.target.value; e.target.style.borderColor = GROUPS[p.group].color; } },
+        GROUPS.map((g, gi) => h("option", { value: gi, selected: gi === p.group }, g.name))) : null;
+      return h("div", { class: "row" }, h("span", { class: "num" }, i + 1),
+        h("input", { value: p.name, maxLength: 12, placeholder: "Player " + (i + 1), "aria-label": "Name of player " + (i + 1), oninput: (e) => { p.name = e.target.value; } }),
+        sel, h("button", { class: "x", title: "Remove", "aria-label": "Remove player " + (i + 1), disabled: setup.players.length <= 2, onclick: () => { setup.players.splice(i, 1); renderSetup(mode); } }, "✕"));
+    });
+    const secSel = h("select", { onchange: (e) => { setup.seconds = +e.target.value; } }, [20, 30, 45, 60].map((s) => h("option", { value: s, selected: s === setup.seconds }, s + " seconds")));
+    const rndSel = multi ? h("select", { onchange: (e) => { setup.rounds = +e.target.value; } }, [1, 2, 3].map((r) => h("option", { value: r, selected: r === setup.rounds }, r + (r === 1 ? " round" : " rounds")))) : null;
+    show(
+      h("h2", {}, multi ? "👯 Multiplayer" : "🏆 Tournament"),
+      h("p", {}, multi ? "Each player takes a turn on the same balloons. Put players in different groups to play as teams." : "Players face off two at a time. The higher score moves on. A tie means a sudden-death replay."),
+      h("div", { class: "rows" }, rows),
+      setup.players.length < max ? btn("+ Add player", () => { setup.players.push({ name: "", group: setup.players.length % GROUPS.length }); renderSetup(mode); }, "ghost") : null,
+      h("div", { class: "opts" }, h("label", {}, "Turn length ", secSel), rndSel ? h("label", {}, "Rounds ", rndSel) : null),
+      h("p", { class: "hint" }, "Footer options (letters, arrows) are locked once the game starts so it stays fair."),
+      btn("Start", () => (multi ? startMulti() : startTourney()), "big"), btn("Back", goHome, "ghost"),
+    );
+  }
+
+  const cleanPlayers = () => setup.players.map((p, i) => ({ name: (p.name || "").trim() || "Player " + (i + 1), group: p.group }));
+
+  function showReady({ title, sub, color, note, extra, label = "Start turn", go }) {
+    const b = btn(label, () => go(), "big");
+    show(h("h2", { style: color ? `color:${color}` : "" }, title), sub ? h("p", {}, sub) : null, note ? h("p", { class: "note" }, note) : null, extra, b);
+    b.focus({ preventScroll: true });
+  }
+
+  // ---- Multiplayer (pass and play, optional groups) ----
+  function startMulti() {
+    const players = cleanPlayers().map((p) => ({ ...p, total: 0, acc: [] }));
+    const s = session = { mode: "multi", players, rounds: setup.rounds, seconds: setup.seconds, seeds: Array.from({ length: setup.rounds }, newSeed), queue: [], qi: 0, last: "",
+      useGroups: new Set(players.map((p) => p.group)).size > 1 };
+    for (let r = 0; r < s.rounds; r++) players.forEach((_, i) => s.queue.push({ i, r }));
+    lockOpts(true); nextMulti();
+  }
+
+  function nextMulti() {
+    const s = session;
+    if (s.qi >= s.queue.length) return multiResults();
+    const t = s.queue[s.qi], p = s.players[t.i];
+    showReady({
+      title: `${p.name}'s turn`, color: GROUPS[p.group].color,
+      sub: `${s.useGroups ? GROUPS[p.group].name + "  ·  " : ""}Round ${t.r + 1} of ${s.rounds}  ·  ${s.seconds} seconds`, note: s.last,
+      go: () => startTurn(p, s.seeds[t.r], s.seconds, (sc, acc) => { p.total += sc; p.acc.push(acc); s.last = `${p.name} scored ${sc}`; s.qi++; nextMulti(); }),
+    });
+  }
+
+  function rankRows(list, valueOf) { // equal values share a medal
+    const sorted = [...list].sort((a, b) => valueOf(b) - valueOf(a)); let rank = 0;
+    return sorted.map((it, i) => { if (i > 0 && valueOf(it) !== valueOf(sorted[i - 1])) rank = i; return { it, rank }; });
+  }
+
+  function multiResults() {
+    const s = session; lockOpts(false);
+    const rows = rankRows(s.players, (p) => p.total);
+    const tableP = h("table", { class: "tbl" }, rows.map(({ it, rank }) =>
+      h("tr", {}, h("td", {}, medal(rank)), h("td", {}, h("span", { class: "dot", style: `background:${GROUPS[it.group].color}` }), it.name), h("td", {}, it.total))));
+    let tableG = null, headline = rows[0].rank === 0 && rows.filter((r) => r.rank === 0).length > 1 ? "It's a tie!" : `${rows[0].it.name} wins!`;
+    if (s.useGroups) {
+      const gs = [...new Set(s.players.map((p) => p.group))].map((g) => { const m = s.players.filter((p) => p.group === g), total = m.reduce((a, p) => a + p.total, 0); return { g, total, avg: Math.round(total / m.length), n: m.length }; });
+      const gr = rankRows(gs, (x) => x.avg);
+      tableG = h("div", {}, h("h2", { style: "margin-top:14px" }, "Groups"), h("p", {}, "Ranked by average score per player so group size does not matter"),
+        h("table", { class: "tbl" }, gr.map(({ it, rank }) => h("tr", {}, h("td", {}, medal(rank)),
+          h("td", {}, h("span", { class: "dot", style: `background:${GROUPS[it.g].color}` }), `${GROUPS[it.g].name} (${it.n})`), h("td", {}, `${it.avg} avg  ·  ${it.total} total`)))));
+      if (gr[0].rank === 0 && gr.filter((r) => r.rank === 0).length === 1) headline += `  ${GROUPS[gr[0].it.g].name} takes the group prize!`;
+    }
+    show(h("div", { class: "crown" }, "🏆"), h("h2", {}, headline), h("p", {}, "Players"), tableP, tableG,
+      btn("Play again", () => startMulti(), "big"), btn("Change players", () => renderSetup("multi"), "alt"), btn("Menu", goHome, "ghost"));
+  }
+
+  // ---- Tournament (single elimination) ----
+  function pairUp(list) { const out = []; for (let i = 0; i < list.length; i += 2) out.push({ a: list[i], b: list[i + 1] ?? null, winner: null, sa: null, sb: null, step: 0, seed: newSeed() }); return out; }
+
+  function startTourney() {
+    const names = cleanPlayers().map((p) => ({ name: p.name }));
+    let size = 2; while (size < names.length) size *= 2;
+    const slots = Array(size).fill(null); // standard seeding spreads byes: slot i meets slot size-1-i
+    names.forEach((p, i) => { slots[i] = p; });
+    const first = []; for (let i = 0; i < size / 2; i++) first.push(slots[i], slots[size - 1 - i]);
+    session = { mode: "tourney", seconds: setup.seconds, rounds: [pairUp(first)], r: 0, m: 0, note: "" };
+    lockOpts(true); nextMatch();
+  }
+
+  const roundName = (s) => { const n = s.rounds[s.r].length; return n === 1 ? "Final" : n === 2 ? "Semifinals" : n === 4 ? "Quarterfinals" : "Round " + (s.r + 1); };
+
+  function bracketEl(s) {
+    return h("div", { class: "bracket" }, s.rounds.map((round, ri) => h("div", { class: "bcol" }, h("h4", {}, round.length === 1 ? "Final" : round.length === 2 ? "Semis" : round.length === 4 ? "Quarters" : "Round " + (ri + 1)),
+      round.map((m, mi) => h("div", { class: "match" + (ri === s.r && mi === s.m && !m.winner ? " now" : "") },
+        [["a", "sa"], ["b", "sb"]].map(([k, sk]) => h("div", { class: m.winner ? (m.winner === m[k] ? "w" : "l") : "" }, h("span", {}, m[k] ? m[k].name : "bye"), h("span", {}, m[sk] ?? "")))))))); // scores show once played
+  }
+
+  function nextMatch() {
+    const s = session;
+    for (;;) {
+      const round = s.rounds[s.r];
+      if (s.m >= round.length) {
+        const winners = round.map((m) => m.winner);
+        if (winners.length === 1) return champion(winners[0]);
+        s.rounds.push(pairUp(winners)); s.r++; s.m = 0; continue;
       }
-      text(state === "menu" ? "Tap or press Space to start" : "Tap or press Space to play again", cx, cy + (state === "menu" ? 104 : 80), 22, "#fff", "center");
+      const m = round[s.m];
+      if (!m.b || !m.a) { m.winner = m.a || m.b; s.m++; continue; } // bye
+      return playStep();
     }
   }
 
-  balloons = []; arrows = []; particles = []; floaters = []; score = 0; shots = 0; hits = 0; timeLeft = GAME_SECONDS; spawnTimer = 0; charging = false; charge = 0; aim = -0.35;
+  function playStep() {
+    const s = session, m = s.rounds[s.r][s.m], who = m.step === 0 ? m.a : m.b;
+    showReady({
+      title: `${who.name}'s turn`, sub: `${roundName(s)}  ·  ${m.a.name} vs ${m.b.name}  ·  ${s.seconds} seconds`,
+      note: m.step === 1 ? `${m.a.name} scored ${m.sa}. Beat it!` : s.note, extra: bracketEl(s),
+      go: () => startTurn(who, m.seed, s.seconds, (sc) => {
+        if (m.step === 0) { m.sa = sc; m.step = 1; return playStep(); }
+        m.sb = sc;
+        if (m.sa === m.sb) { s.note = `Tie at ${sc}! Sudden-death replay.`; m.step = 0; m.seed = newSeed(); m.sa = m.sb = null; return playStep(); }
+        m.winner = m.sa > m.sb ? m.a : m.b; s.note = `${m.winner.name} wins ${Math.max(m.sa, m.sb)} to ${Math.min(m.sa, m.sb)}!`; s.m++; nextMatch();
+      }),
+    });
+  }
+
+  function champion(w) {
+    const s = session; lockOpts(false);
+    show(h("div", { class: "crown" }, "👑"), h("h2", {}, `${w.name} is the champion!`), s.note ? h("p", { class: "note" }, s.note) : null, bracketEl(s),
+      btn("Play again", () => startTourney(), "big"), btn("Change players", () => renderSetup("tourney"), "alt"), btn("Menu", goHome, "ghost"));
+  }
+
+  // ---- main loop ----
+  goHome();
   let last = performance.now();
   (function loop(now) {
     const dt = Math.min(0.033, (now - last) / 1000); last = now;
