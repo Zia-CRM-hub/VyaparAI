@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>Balloon Shooter Admin</title>
+<style>
+  :root { --bg:#0b1d3a; --card:#13294d; --fg:#eaf4ff; --mut:#9fb8d8; --acc:#ff4f9a; --line:#25406b; }
+  * { box-sizing: border-box; } body { margin:0; background:var(--bg); color:var(--fg); font:14px system-ui,sans-serif; padding:16px; }
+  h1 { margin:0 0 12px; font-size:22px; } h2 { font-size:15px; margin:0 0 8px; color:var(--mut); text-transform:uppercase; letter-spacing:.06em; }
+  .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-bottom:14px; }
+  .tile,.card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; }
+  .tile b { display:block; font-size:26px; color:var(--acc); } .tile span { color:var(--mut); font-size:12px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px; margin-bottom:12px; }
+  table { width:100%; border-collapse:collapse; } th,td { text-align:left; padding:5px 6px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { color:var(--mut); font-weight:600; } .scroll { overflow-x:auto; max-height:360px; overflow-y:auto; }
+  .bar { height:8px; background:var(--acc); border-radius:4px; min-width:2px; } .row { display:flex; align-items:center; gap:8px; margin:4px 0; } .row i { width:90px; font-style:normal; color:var(--mut); } .row span { width:36px; text-align:right; }
+  #login { max-width:320px; margin:20vh auto; text-align:center; } input,button { font:inherit; padding:9px 12px; border-radius:8px; border:1px solid var(--line); background:#0f2347; color:var(--fg); } button { background:var(--acc); border:0; font-weight:700; cursor:pointer; }
+  .err { color:#ff8a8a; margin-top:8px; } [hidden]{display:none!important}
+</style></head><body>
+<div id="login"><h1>🎈 Admin</h1><p><input id="tok" type="password" placeholder="Admin token" autofocus> <button id="go">Open</button></p><div class="err" id="err"></div></div>
+<div id="app" hidden>
+  <h1>🎈 Balloon Shooter Insights <button id="re" style="font-size:12px;padding:5px 10px">Refresh</button></h1>
+  <div class="tiles" id="tiles"></div>
+  <div class="grid">
+    <div class="card"><h2>Last 14 days</h2><div id="days"></div></div>
+    <div class="card"><h2>Game modes</h2><div id="modes"></div><h2 style="margin-top:12px">Balloon options used</h2><div id="opts"></div><h2 style="margin-top:12px">Devices</h2><div id="devs"></div></div>
+  </div>
+  <div class="grid">
+    <div class="card"><h2>Players</h2><div class="scroll"><table id="players"></table></div></div>
+    <div class="card"><h2>Recent plays</h2><div class="scroll"><table id="plays"></table></div></div>
+  </div>
+  <div class="card"><h2>Visitors</h2><div class="scroll"><table id="vis"></table></div></div>
+</div>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const ago = (t) => { const s = (Date.now() - new Date(t)) / 1000; return s < 60 ? "just now" : s < 3600 ? (s / 60 | 0) + "m ago" : s < 86400 ? (s / 3600 | 0) + "h ago" : (s / 86400 | 0) + "d ago"; };
+const table = (head, rows) => "<tr>" + head.map((h) => `<th>${h}</th>`).join("") + "</tr>" + rows.map((r) => "<tr>" + r.map((c) => `<td>${esc(c)}</td>`).join("") + "</tr>").join("");
+const bars = (obj) => { const e = Object.entries(obj).sort((a, b) => b[1] - a[1]), m = Math.max(1, ...e.map((x) => x[1])); return e.length ? e.map(([k, v]) => `<div class="row"><i>${esc(k)}</i><div class="bar" style="width:${v / m * 100}%"></div><span>${v}</span></div>`).join("") : "<span style='color:var(--mut)'>No data yet</span>"; };
+async function load() {
+  const r = await fetch("/api/stats", { headers: { "x-admin-token": sessionStorage.t || "" } });
+  if (!r.ok) { sessionStorage.removeItem("t"); $("app").hidden = true; $("login").hidden = false; $("err").textContent = "Wrong token"; return; }
+  const d = await r.json(); $("login").hidden = true; $("app").hidden = false; const t = d.totals;
+  $("tiles").innerHTML = [["Unique visitors", t.visitors], ["Today", t.visitorsToday], ["Returning", t.returning], ["Page visits", t.visits], ["Games played", t.plays], ["Avg score", t.avgScore], ["Best score", t.bestScore]].map(([l, v]) => `<div class="tile"><b>${v}</b><span>${l}</span></div>`).join("");
+  const days = []; for (let i = 13; i >= 0; i--) { const k = new Date(Date.now() - i * 864e5).toISOString().slice(0, 10), x = d.byDay[k] || { visits: 0, plays: 0 }; days.push([k.slice(5), x.visits, x.plays]); }
+  $("days").innerHTML = `<div class="scroll">${table(["Day", "Visits", "Plays"], days.reverse())}</div>`;
+  $("modes").innerHTML = bars(d.modes); $("opts").innerHTML = bars(d.opts); $("devs").innerHTML = bars(d.devices);
+  $("players").innerHTML = table(["Player", "Plays", "Best", "Avg"], d.players.map((p) => [p.name, p.plays, p.best, p.avg]));
+  $("plays").innerHTML = table(["When", "Player", "Mode", "Score", "Acc"], d.recentPlays.map((p) => [ago(p.t), p.player, p.mode, p.score, p.acc + "%"]));
+  $("vis").innerHTML = table(["Visitor", "Device", "Visits", "Plays", "First seen", "Last seen"], d.visitors.map((v) => [v.id.slice(0, 8), v.device, v.visits, v.plays, v.first.slice(0, 10), ago(v.last)]));
+}
+$("go").onclick = () => { sessionStorage.t = $("tok").value; load(); }; $("tok").onkeydown = (e) => e.key === "Enter" && $("go").click(); $("re").onclick = load;
+if (sessionStorage.t) load();
+</script></body></html>
